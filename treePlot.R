@@ -2,7 +2,7 @@ require(TreeLS)
 require(lidR)
 
 lazMatrix = function(lazFile){
-  return( data.frame(X = lazFile@data$X, Y = lazFile@data$Y, Z = lazFile@data$Z) )  
+  return( data.frame(X = lazFile@data$X, Y = lazFile@data$Y, Z = lazFile@data$Z, class = lazFile@data$Classification) )  
 }
 
 eucDist = function(px, py, vx, vy, dmax = 0.1){
@@ -16,28 +16,32 @@ eucDist = function(px, py, vx, vy, dmax = 0.1){
   
 }
 
-lazPlot = lidR::readLAS('duratex_p1464_transecto.laz')
-summary(lazPlot)
+dir.create('stem_clouds')
+files = dir('./', '.*\\.laz')
 
-system('lasground -i duratex_p1464_transecto.laz -odix _g -olaz -replace_z -no_bulge -wilderness')
+for(file in files){
 
-lazNorm = readLAS('duratex_p1464_transecto_g.laz')
+# lazPlot = lidR::readLAS('duratex_p1464_transecto.laz')
+# summary(lazPlot)
 
-rgl.points(lazMatrix(lazNorm), size=.5)
-axes3d()
+lgd = paste('lasground -i', file, '-odix _g -olaz -replace_z -no_bulge -wilderness')
+
+system(lgd)
+
+lazNorm = readLAS(sub('.laz', '_g.laz', file))
 
 {
   
-clear3d()
-bg3d('black')
-rgl.points(lazMatrix(lazNorm), size=.1, col='white')
-axes3d()
+# clear3d()
+# bg3d('black')
+# rgl.points(lazMatrix(lazNorm), size=.1, col='white')
+# axes3d()
 
-cmd = 'las2rings -i duratex_p1464_transecto_g.laz -d 0.02 -v 2 -l LOW -u UP -p 0.02'
+cmd = 'las2rings -i duratex_p1464_transecto_g.laz -d 0.01 -v 2 -l LOW -u UP'
 
 results = data.frame()
 
-for(i in c(.5,1,1.5,2,2.5)){
+for(i in c(.5,1,1.5,2,2.5,3)){
   
   cmdTemp = sub('LOW', i, cmd)  
   cmdTemp = sub('UP', i+1, cmdTemp)  
@@ -48,7 +52,7 @@ for(i in c(.5,1,1.5,2,2.5)){
   
   results = rbind(results, treeLocations)
   
-  with(treeLocations, spheres3d(x_main, y_main, (z_min+z_max)/2, r_main, col='green'))
+  # with(treeLocations, spheres3d(x_main, y_main, (z_min+z_max)/2, r_main, col='green'))
   
 }
 
@@ -70,21 +74,41 @@ while(nrow(results) > 0){
 }
 names(keep) = nms
 
+onePerTree = data.frame()
+
+while(nrow(keep) > 0){
+  
+  x = keep[1,'x_main']
+  y = keep[1,'y_main']
+  
+  dst = eucDist(x,y,keep$x_main, keep$y_main, .5)
+  
+  if(length(dst) > 1){
+    temp = apply(keep[dst,], 2, mean)
+  }else{
+    temp = keep[dst,]
+  }
+  
+  onePerTree = rbind(onePerTree, temp)
+  keep = keep[-dst,]
+  
+}
+names(onePerTree) = nms
+
 clear3d()
 bg3d('black')
 rgl.points(lazMatrix(lazNorm), size=.5, col='white')
-with(keep, spheres3d(x_main, y_main, (z_min+z_max)/2, r_main, col='green'))
+with(onePerTree, spheres3d(x_main, y_main, (z_min+z_max)/2, r_main, col='green'))
 axes3d()
 
-nrow(keep)
-
+nrow(onePerTree)
 
 
 clear3d()
 bg3d('black')
-for(row in 1:nrow(keep)){
+for(row in 1:nrow(onePerTree)){
 # row = 1
-xy  = as.double(keep[row,1:2])
+xy  = as.double(onePerTree[row,1:2])
 rad = 1
 arv = clip.XY(lazMatrix(lazNorm), rad = rad, center = xy)
 arvlaz = LAS(arv)
@@ -96,11 +120,26 @@ system('las2rings -i tree.laz -t')
 
 t = readLAS('tree_cloud.las')
 
+height = diff(range(t@data$Z))
+
+if(height < 3) next
+
+if(row == 1){
+  stems = t
+}else{
+  stems@data = rbind(stems@data, t@data)
+}
+
 # clear3d()
 # bg3d('black')
-rgl.points(t@data, col=rainbow(nrow(keep))[row])
+rgl.points(t@data, col=rainbow(nrow(onePerTree))[row])
 rgl.points(arv, size=.5)
 }
 rgl.points(lazMatrix(lazNorm), size=.5, col='darkgrey')
+
+writeLAS(stems, sub('.laz', '_stems.laz', file))
+write.table(onePerTree, sub('.laz', '_trees.txt', file), col.names = T, row.names = F)
+
+}
 
 }
