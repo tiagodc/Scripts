@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #  give permission
-## chmod u+x pcap_bash
+## sudo chmod u+x pcap_bash
 
 echo "output filename: "
 read filename
 
-echo "wait time to start (sec): "
+echo "time to wait before starting (sec): "
 read start
 
 echo "how many seconds to collect: "

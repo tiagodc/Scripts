@@ -1,22 +1,20 @@
 #!/bin/bash
 
 #  give permission
-## chmod u+x pcap_many
+## sudo chmod u+x pcap_many.sh
 
-echo "começar em (s): "
+echo "tempo de espera antes de começar (s): "
 read inicio
+#inicio=10
 
-echo "tempo de espera (s): "
+echo "tempo de espera entre coletas (s): "
 read espera
-#espera=$((espera))
+#espera=1
 
-echo "tempo de coleta (min): "
+echo "duração da coleta (min): "
 read tempo
+#tempo=5
 tempo=$((tempo*60))
-
-echo "intervalo de coleta (s): "
-read intervalo
-#inervalo=$((intervalo))
 
 timer=0
 readTime=2
@@ -28,7 +26,7 @@ while ((timer <= tempo))
 	
 		file="n"$timer".pcap"
 
-		sleep $espera && timeout $readTime tcpdump src 192.168.1.201 and port 2368 -w $file && echo $file "salvo"
+		sleep $espera && timeout $readTime tcpdump src 192.168.1.201 and port 2368 or port 8308 -w $file && echo $file "salvo"
 
 		timer=$((timer+espera+readTime))
 
