@@ -4,7 +4,7 @@
 ## chmod u+x slam_bash
 
 #full path to the directory containing the .pcap files
-path="/home/tiago/Desktop/vo/"
+path="/home/tiago/Desktop/Jacarei/"
 
 tempo=5
 mkdir -p $path'pcd_temp'
