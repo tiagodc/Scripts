@@ -2,10 +2,12 @@ require(TreeLS)
 require(lidR)
 require(stringr)
 
+setwd('~/ProLiDAR/Pilotos/TLS/LAZ/')
+
 # new RANSAC circle estimation
 RANSAC.olofsson = function(stem.sec, n=3, p=.8, P=.99, timesN=50, inner_circle = 0.015){
   
-  slc = stem.sec = dbhSegment
+  slc = stem.sec #= dbhSegment
   
   if(nrow(stem.sec) < n) n = nrow(stem.sec)
   
@@ -52,56 +54,30 @@ RANSAC.olofsson = function(stem.sec, n=3, p=.8, P=.99, timesN=50, inner_circle =
   
 }
 
-setwd('~/ProLiDAR/Pilotos/TLS/LAZ/')
-# dir.create('normalized')
-# dir.create('stems')
-files = dir(pattern = '*.\\.laz')
+files = dir('eldorado', pattern = '*.\\.laz', full.names = T)
 
-# files = c(
-#   "klabin_p1180_parado_90.laz", #done 
-#   "klabin_p224_central_rambo.laz", #done
-#   "klabin_p228_transecto_45.laz", #done
-#   "klabin_p228_transecto.laz", #done
-#   "klabin_p5830_girando.laz", #done
-#   "klabin_p5830_girando_rotacionado.laz",
-#   "klabin_p232_transecto_45.laz",
-#   "klabin_p228_aleatorio2.laz",
-#   "klabin_p224_u.laz",
-#   "klabin_p224_transecto_45_rotacionado.laz",
-#   "klabin_p224_transecto_45.laz",
-#   "klabin_p224_central_rambo45.laz",
-#   "duratex_p1480_transecto_giro.laz",
-#   "duratex_p1464_transecto_giro.laz",
-#   "duratex_p1462_transecto_45.laz"
-# )
-
-
+normalize = F
 # clip and save plot clouds
 for(i in 1:length(files)){
 # i=1
 cat(paste('\n\n################\n\n\n', files[i], '\n\n\n################\n\n'))
 
-# cloud = readLAS(files[i], XYZonly = T)
-# plot(cloud)
-normName = normName = str_c('normalized/', sub('\\.laz', '_n.laz', files[i]))
-
-lasground = 
-# str_c('docker run -v ', getwd(), ':/LAZ pdal/pdal:1.6 pdal ground -v 8 -i LAZ/', files[i],' -o LAZ/', normName)
-paste('wine lasground -i', files[i] ,'-no_bulge -no_stddev -wilderness -odix _n -odir normalized -olaz -replace_z -v')
-
-system(lasground)
-
+  if(normalize){
+    # cloud = readLAS(files[i], XYZonly = T)
+    # plot(cloud)
+    normName = normName = str_c('normalized/', sub('\\.laz', '_n.laz', files[i]))
+    
+    lasground = 
+    # str_c('docker run -v ', getwd(), ':/LAZ pdal/pdal:1.6 pdal ground -v 8 -i LAZ/', files[i],' -o LAZ/', normName)
+    paste('wine lasground -i', files[i] ,'-no_bulge -no_stddev -wilderness -odix _n -odir normalized -olaz -replace_z -v')
+    
+    system(lasground)
+  }else{
+    normName = files[i] 
+  }
 # rm(cloud)
 normCloud = readLAS(normName, XYZonly = T)
  
-# plot(normCloud)
-# axes3d(col='red')
-
-# forPlot = clip.XY(cloud@data, 15, c(1,12))
-# cloud = LAS(forPlot)
-# file = sub('_norm.laz', '_plot.laz', file)
-# writeLAS(cloud, paste('plot_clouds/', file,sep=''))
-
 # process DBHs from all clouds
 
 las2rings = paste('./las2rings -i', normName ,'-d 0.01 -l LOW -u UP -p 0.03 -r 0.2 -v 2 -o normalized/res_temp.txt -O normalized/laz_temp.laz')
@@ -109,7 +85,7 @@ las2rings = paste('./las2rings -i', normName ,'-d 0.01 -l LOW -u UP -p 0.03 -r 0
 centers = data.frame()
 tempCloud = 'normalized/laz_temp.laz'
 tempResult = 'normalized/res_temp.txt'
-for(h in c(1,1.5,2,2.5,3)){
+for(h in c(1,1.5,2)){
   
   las2temp = sub('LOW', h,las2rings)
   las2temp = sub('UP', h+1,las2temp)
@@ -125,7 +101,7 @@ for(h in c(1,1.5,2,2.5,3)){
 }
 
 inclusionRadius = .2
-minSegs = 3
+minSegs = 2
 keepCenters = data.frame()
 
 nTree = 1
@@ -147,8 +123,8 @@ while(nrow(centers) > 0){
 }
 
 
-minPoints = 300
-minHeight = 4
+minPoints = 30
+minHeight = 2
 neighborRadius = .75
 treePositions = data.frame()
 stemCloud = data.frame()
@@ -198,44 +174,30 @@ write.table(treePositions, stemsStatsName)
 
 }
 
-test = dir('stems/', pattern = '\\.laz')
-test = sub('_stems','',test)
+#######################################################################
 
-cloud = readLAS('klabin_p5830_girando.laz', XYZonly = T)
+files = dir('stems', pattern = '\\.laz', full.names = T)
+txtFiles = sub('\\.laz', '.txt', files)
 
-# cloud2 = cloud@data
-# cloud2[,2] = cloud@data[,2]
+# dbh measurements
+for(i in 1:length(files)){
+# i = 1
+cloud = readLAS(files[i], XYZonly = T)
+info  = read.table(txtFiles[i], header = T) 
 
-rgl.points(cloud@data, size=.5) ; axes3d(col='red')
+X = as.double(by(info$x_center, as.factor(info$n), mean))
+Y = as.double(by(info$y_center, as.factor(info$n), mean))
 
-# clear3d()
-# rgl.points(stemCloud, col='green')
-# rgl.points(normCloud@data, size=.5, col='white')
-# with( treePositions, spheres3d(x_center, y_center, z_min, radius = radius, col='red') )
-
-plotsDir = 'plot_clouds/'
-stemPlots = dir(plotsDir, '_stems\\.laz')
-stemCoordinates = dir(plotsDir, '_trees\\.txt')
-
-hDbh  = c(1.1,1.5)
+hDbh  = min(cloud@data$Z) + c(1.1,1.5)
 pixel = 0.025
 minPoints = 5
-
-par(mfrow=c(2,3))
-for(i in 1:length(stemCoordinates)){
-
-cloud  = readLAS(paste(plotsDir, stemPlots[i], sep=''))
-coords = read.table(paste(plotsDir, stemCoordinates[i], sep=''), header = T)
-
 dbhs = data.frame()
-for(j in 1:nrow(coords)){
+
+for(nt in 1:length(X)){
+  print( paste('plot:', i, 'of', length(files),'; tree:', nt, 'of', length(X)) )
   
-  print(paste('tree:', j, '; %:', j/nrow(coords) * 100))
-  
-  row = as.double(coords[j,])
-  
-  stem = as.data.frame( clip.XY( cloud@data, .75 , row[3:4] ) )[,1:3]
-  
+  stem = as.data.frame(clip.XY(cloud@data, 1, c(X[nt], Y[nt])))
+
   if(nrow(stem) < minPoints) next
   
   dbhSegment = stem[ stem[,3] >= hDbh[1] & stem[,3] <= hDbh[2]  ,]
@@ -244,6 +206,8 @@ for(j in 1:nrow(coords)){
   
   dbhRaster = makeRaster(dbhSegment, pixel, image = F)
   dbhHough  = hough(dbhRaster, c(pixel, .2), pixel, .025)
+  
+  colnames(dbhHough$centers) = c('x', 'y', 'votes', 'radii')
   
   descOrd = order(dbhHough$centers[,'votes'], dbhHough$centers[,'radii'], decreasing = T)
   
@@ -268,35 +232,239 @@ for(j in 1:nrow(coords)){
 threshold = qnorm(.99, mean(dbhs$r), sd(dbhs$r))
 
 dbhs = dbhs[ dbhs$r < threshold & dbhs$r > 0,]
+# hist(dbhs$r)
 
-hist(dbhs$r)
-
-write.table(dbhs, paste(plotsDir, sub('_trees\\.txt', '_dbh2.txt',stemCoordinates[i]), sep=''), col.names = T, row.names = F)
+nomFile = sub('\\.laz', '.txt', files[i])
+nomFile = sub('stems/', 'dbh/', nomFile)
+write.table(dbhs, nomFile, col.names = T, row.names = F)
 
 }
 
+# stem model measurements
+for(i in 43:length(files)){
+  # i = 1
+  cloud = readLAS(files[i], XYZonly = T)
+  info  = read.table(txtFiles[i], header = T) 
+  
+  X = as.double(by(info$x_center, as.factor(info$n), mean))
+  Y = as.double(by(info$y_center, as.factor(info$n), mean))
+  treeNumbers = unique(info$n)
+  
+  minPoints = 5
+  measures = data.frame()
+  
+  for(j in treeNumbers){
+    
+    print( paste('plot:', i, 'of', length(files),'; tree:', j, 'of', length(X)) )
+    
+    stem = as.data.frame(clip.XY(cloud@data, 1, c(X[j], Y[j])))
+    stemHough = info[info$n == j,]
+    
+    if(nrow(stem) < minPoints) next
+    
+    parRANSAC = apply(stemHough, 1, function(x){
+      sgmt = stem[ stem$Z > x['z_min'] & stem$Z < x['z_max'] ,]
+      cPars = RANSAC.olofsson(sgmt, timesN = 100)
+      if(!is.null(cPars)) cPars = c(cPars, x['z_min'], x['z_max'])
+      return(cPars)
+    })
+    
+    if(is.null(parRANSAC)) next
+    
+    parRANSAC = if(class(parRANSAC) == 'list') do.call(rbind, parRANSAC) else as.data.frame(t(parRANSAC))
+    merged = merge(stemHough, parRANSAC, by = c('z_min', 'z_max'), all = T)
+  
+    measures = rbind(measures, merged)
+  }
+  
+  nomFile = sub('\\.laz', '.txt', files[i])
+  nomFile = sub('stems/', 'stem_model/', nomFile)
+  write.table(measures, nomFile, col.names = T, row.names = F)
+}
+
+#######################################################################
+
+radiiFilter = function(table, radiiCol = 'r', maxRad = 0.1, conf=.975){
+
+  table = table[ table[,radiiCol] < maxRad , ]
+    
+  if(!is.null(conf)){
+    # CI = confint(lm(table[,radiiCol]~1), level=conf)
+    # CI = quantile(table[,radiiCol], c(1-conf, conf))
+    CI = qnorm(c(1-conf, conf), mean(table[,radiiCol]), sd(table[,radiiCol]))
+    
+    table = table[ table[,radiiCol] > CI[1] & table[,radiiCol] < CI[2] ,]
+  }
+
+  return(table)
+}
+dbhMap = function(X, Y, radii, ...){
+  angs = pi * 1:360 / 180
+  
+  circles = lapply(1:length(radii), function(i){
+    r = radii[i]
+    perX = cos(angs) * r
+    perY = sin(angs) * r
+    
+    coords = data.frame(X = perX + X[i], Y = perY + Y[i])
+    return(coords)
+  })
+  
+  boundBox = apply(do.call(rbind, circles), 2, range)
+  
+  plot(Y~X, data=boundBox, cex=0, asp=1, ...)
+  
+  plt = lapply(circles, function(i){
+    lines(i$X, i$Y, lwd=1, lty=1)
+  })
+  
+}
+dbhCurve = function(cloudDiam, fieldDiam, ...){
+  
+  cloudDiam = cloudDiam[!is.na(cloudDiam)]
+  fieldDiam = fieldDiam[!is.na(fieldDiam)]
+  
+  # cm = radii*200
+  maxD  = max(cloudDiam)
+  # minD  = min(cloudDiam)
+  
+  maxFD = max(fieldDiam)
+  # minFD = min(fieldDiam)
+  # cm = cm[cm < maxD]
+  
+  c1 = dnorm(0:(maxD*100)/100, mean(cloudDiam, na.rm = T), sd(cloudDiam, na.rm = T))
+  c2 = dnorm(0:(maxFD*100)/100, mean(fieldDiam, na.rm = T), sd(fieldDiam, na.rm = T))
+  
+  a = hist(cloudDiam, breaks = seq(0,maxD+1,1), freq = F, 
+       col=rgb(0,0,1,1/4), 
+       ylim = c(0, 1.2*max(c(c1,c2))), xlim=c(0, 1.2*max(c(cloudDiam, fieldDiam))),
+       ylab="densidade", xlab="DAP (cm)"
+       , ...
+       )
+  lines(y=c1 , x=0:(maxD*100)/100, col='blue')
+  
+  b = hist(fieldDiam, breaks = seq(0,maxFD+1,1), freq = F, 
+           col=rgb(1,0,0,1/4), add=T)
+  lines(y=c2, x=0:(maxFD*100)/100, col='red')
+  
+  avg  = round(mean(cloudDiam), 2)
+  CI   = round(avg - confint(lm(cloudDiam~1))[1], 2)
+  
+  fAvg = round(mean(fieldDiam), 2)
+  fCI  =round(fAvg - confint(lm(fieldDiam~1))[1], 2)
+    
+  texto  = paste('n =', length(cloudDiam), 'DAP =', avg , '±', CI, 'cm')
+  texto2 = paste('n =', length(fieldDiam), 'DAP =', fAvg , '±', fCI, 'cm')
+  
+  # par(xpd=T)
+  # text(1, quantile(a$density, .9), pos = 4, labels = texto)
+
+  legend('topleft', 
+         fill = c(rgb(0,0,1,1/4), rgb(1,0,0,1/4)),
+         border = c('blue', 'red'),
+         legend = c(paste('nuvem:', texto), paste('campo:', texto2))
+        )
+  
+}
+
+# dbh plot
+files = dir('dbh', pattern = '\\.txt', full.names = T)
+lazFiles = sub('dbh/', 'normalized/', files)
+lazFiles = sub('stems.txt', 'n.laz', lazFiles)
+parcelas = unique(as.double(sub('.*_p([0-9]+)_.*', '\\1', files)))
+campo = read.csv('campo/RemediçãoMonteAlegre.csv', sep=';', dec=',')
+dMax = 20
+for(i in 1:length(files)){
+  file = read.table(files[i], header = T)
+  
+  mainName = sub('dbh/(.+)_stems\\.txt', '\\1', files[i])
+  file = radiiFilter(file, maxRad = dMax/200, conf = .95)
+  
+  pn = as.double(sub('.*_p([0-9]+)_.*', '\\1', files[i]))
+  tempCampo = campo[ campo$nm_parcela == pn,]
+  
+  if(nrow(tempCampo) == 0) next
+  
+  png(str_c('pics/dbh/',mainName,'.png'), 20,15, units = 'cm', res = 200)
+  # dbhMap(file$x, file$y, file$r, main=mainName)
+  dbhCurve(file$r * 200, tempCampo$nm_d_c, main=mainName)
+  dev.off()
+  
+  # cloud = readLAS(lazFiles[i], XYZonly = T)
+  # clear3d()
+  # bg3d('black')
+  # rgl.points(cloud@data, size=.5)
+  # spheres3d(file$x, file$y, 1.3, file$r, col='green')
+  # spheres3d(file$x, file$y, 1.3, file$r*5, col='red', alpha=.6)
+}
+
+# stem model
+files = dir('stem_model', pattern = '\\.txt', full.names = T)
+lazFiles = sub('stem_model/', 'normalized/', files)
+lazFiles = sub('stems.txt', 'n.laz', lazFiles)
+
+px = .025
+rMax = .125
+for(i in 1:length(files)){
+file = read.table(files[i], header = T)
+
+keepRansac = file$rad > (file$radius + px)
+rad = ifelse(keepRansac, file$rad, file$radius)
+x   = ifelse(keepRansac, file$x, file$x_center)
+y   = ifelse(keepRansac, file$y, file$y_center)
+h   = (file$z_min + file$z_max) / 2
+taper = solid(20, h, rMax, 3)
+rad[rad > taper] =  NA
+
+df = data.frame(x,y,rad,h,taper, file$n)
+df = df[!is.na(rad),]
+
+df$class = cut(df$h, seq(0,max(df$h)+3, 3))
+df = split(df, df$file.n)
+
+firstHeight = 3
+lastHeight = 20
+df = lapply(df, function(x){
+  # nr = nrow(x)
+  fh = min(x$h)
+  if(fh <= firstHeight) return(x[x$h < lastHeight,])
+})
+
+df = do.call(rbind, df)
+nTrees = length(unique(df$file.n))
+
+mainName = sub('stem_model/(.+)_stems\\.txt', '\\1', files[i])
+png(str_c('pics/model/',mainName,'.png'), 30,15, units = 'cm', res = 200)
+par(mfrow=c(1,2), mar=rep(3,4), oma=rep(1,4), font.lab=2)
+plot(I(df$rad*200) ~ df$class, xlab='', ylab='')
+barplot(table(df$class))
+title(ylab = str_c('n (', nTrees, ' trees)'), line=2, font=2, xpd=T)
+title(main = mainName, xlab = 'H (m)', ylab = 'D (cm)', outer = T, line = -.5, font=2)
+dev.off()
+
+# cloud = readLAS(lazFiles[i], XYZonly = T)
+# clear3d()
+# bg3d('black')
+# rgl.points(cloud@data, size=.5)
+# spheres3d(df$x, df$y, df$h, df$rad, col='green')
+# spheres3d(df$x, df$y, 1.3, df$rad*5, col='red', alpha=.6)
+}
+
+#######################################################################
+
+files = dir('stem_model', pattern = '\\.txt', full.names = T)
+
 
 # compare to field data
-field = read.csv('RemediçãoMonteAlegre.csv', sep=';', dec=',')
-plotNms = unique(field$nm_parcela)
+
 {
 xmax = 35
 maxden = 0
 results = list()
-for(pn in plotNms){
-  
-temp = list(name = pn)
+for(f in files){
+  pn = as.double(sub('.*_p([0-9]+)_.*', '\\1', f))
+  temp = campo[ campo$nm_parcela == pn ,]
 
-fieldPlot = field[ field$nm_parcela == pn ,]
-
-print( paste('n fustes:', length(which(fieldPlot$nm_fuste > 1)))  )
-
-cloudFile = sub('__NP__', pn, 'plot_clouds/duratex_p__NP___transecto_plot_stems.laz')
-cloud = readLAS(cloudFile)
-# cloud@data = cloud@data[ with(cloud@data, X > -8 & X < 8 & Y > 0 & Y < 16) ,]
-# plot(cloud, size=.5)
-
-dbhFile = sub('__NP__', pn, 'plot_clouds/duratex_p__NP___transecto_plot_dbh2.txt')
 dbhs = read.table(dbhFile, head=T)
 dbhs = dbhs[ with(dbhs, x > -8 & x < 8 & y > 1 & y < 17) ,]
 dbhs = dbhs[ dbhs$r < .1,]
