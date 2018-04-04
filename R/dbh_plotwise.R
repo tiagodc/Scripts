@@ -2,7 +2,7 @@ require(TreeLS)
 require(lidR)
 require(stringr)
 
-setwd('~/ProLiDAR/Pilotos/TLS/LAZ/')
+setwd('../Desktop/LAZ')
 
 # new RANSAC circle estimation
 RANSAC.olofsson = function(stem.sec, n=3, p=.8, P=.99, timesN=50, inner_circle = 0.015){
@@ -319,7 +319,7 @@ dbhMap = function(X, Y, radii, ...){
   })
   
 }
-dbhCurve = function(cloudDiam, fieldDiam, ...){
+dbhCurve = function(cloudDiam, fieldDiam, fileName, ...){
   
   cloudDiam = cloudDiam[!is.na(cloudDiam)]
   fieldDiam = fieldDiam[!is.na(fieldDiam)]
@@ -338,8 +338,8 @@ dbhCurve = function(cloudDiam, fieldDiam, ...){
   a = hist(cloudDiam, breaks = seq(0,maxD+1,1), freq = F, 
        col=rgb(0,0,1,1/4), 
        ylim = c(0, 1.2*max(c(c1,c2))), xlim=c(0, 1.2*max(c(cloudDiam, fieldDiam))),
-       ylab="densidade", xlab="DAP (cm)"
-       , ...
+       ylab="densidade", xlab="DAP (cm)",
+       main=fileName, ...
        )
   lines(y=c1 , x=0:(maxD*100)/100, col='blue')
   
@@ -353,8 +353,8 @@ dbhCurve = function(cloudDiam, fieldDiam, ...){
   fAvg = round(mean(fieldDiam), 2)
   fCI  =round(fAvg - confint(lm(fieldDiam~1))[1], 2)
     
-  texto  = paste('n =', length(cloudDiam), 'DAP =', avg , 'Â±', CI, 'cm')
-  texto2 = paste('n =', length(fieldDiam), 'DAP =', fAvg , 'Â±', fCI, 'cm')
+  texto  = paste('n =', length(cloudDiam), 'DAP =', avg , '±', CI, 'cm')
+  texto2 = paste('n =', length(fieldDiam), 'DAP =', fAvg , '±', fCI, 'cm')
   
   # par(xpd=T)
   # text(1, quantile(a$density, .9), pos = 4, labels = texto)
@@ -365,31 +365,42 @@ dbhCurve = function(cloudDiam, fieldDiam, ...){
          legend = c(paste('nuvem:', texto), paste('campo:', texto2))
         )
   
+  return(data.frame(fileName, avg, CI, length(cloudDiam), fAvg, fCI, length(fieldDiam)))
+  
 }
 
 # dbh plot
-files = dir('dbh', pattern = '\\.txt', full.names = T)
+files = dir('dbh/eldorado', pattern = '\\.txt', full.names = T)
 lazFiles = sub('dbh/', 'normalized/', files)
 lazFiles = sub('stems.txt', 'n.laz', lazFiles)
 parcelas = unique(as.double(sub('.*_p([0-9]+)_.*', '\\1', files)))
-campo = read.csv('campo/RemediÃ§Ã£oMonteAlegre.csv', sep=';', dec=',')
+campo = read.csv('campo/Resultados Versão Preliminar_Parcelas Eldorado.csv', sep=',', dec=',')
 dMax = 20
+outFile = data.frame()
 for(i in 1:length(files)){
   file = read.table(files[i], header = T)
+  # file = file[with(file, x > -1 & x < 25 & y > -13 & y < 13),]
+  file = clip.XY(file, rad = 10, apply(file[,1:2], 2, mean))
+  nt = nrow(file)
   
-  mainName = sub('dbh/(.+)_stems\\.txt', '\\1', files[i])
+  if(nt <= 1) next
+  
+  mainName = sub('dbh/eldorado/(.+)_stems\\.txt', '\\1', files[i])
   file = radiiFilter(file, maxRad = dMax/200, conf = .95)
   
   pn = as.double(sub('.*_p([0-9]+)_.*', '\\1', files[i]))
-  tempCampo = campo[ campo$nm_parcela == pn,]
+  tempCampo = campo[ campo$CodParcela == pn,]
   
   if(nrow(tempCampo) == 0) next
   
   png(str_c('pics/dbh/',mainName,'.png'), 20,15, units = 'cm', res = 200)
   # dbhMap(file$x, file$y, file$r, main=mainName)
-  dbhCurve(file$r * 200, tempCampo$nm_d_c, main=mainName)
+  temp = dbhCurve(file$r * 200, tempCampo$DAP, mainName)
   dev.off()
   
+  temp$n = nt
+  outFile = rbind(outFile, temp)
+
   # cloud = readLAS(lazFiles[i], XYZonly = T)
   # clear3d()
   # bg3d('black')
@@ -398,22 +409,83 @@ for(i in 1:length(files)){
   # spheres3d(file$x, file$y, 1.3, file$r*5, col='red', alpha=.6)
 }
 
+# outFile$classes = c('cruzado',
+# 'estatico',
+# 'transecto',
+# 'cruzado',
+# 'estatico',
+# 'transecto',
+# 'estatico',
+# 'estatico 45',
+# 'estatico 45',
+# 'transecto 45',
+# 'transecto 45',
+# 'transecto',
+# 'cruzado',
+# 'estatico',
+# 'estatico 45',
+# 'estatico 45',
+# 'transecto 45',
+# 'transecto 45',
+# 'transecto',
+# 'cruzado',
+# 'estatico',
+# 'estatico 45',
+# 'estatico 45',
+# 'transecto 45',
+# 'transecto 45',
+# 'transecto')
+
+# outFile$nHa = 10000*outFile$length.fieldDiam./(pi*22^2)
+# outFile$nHaCloud = 10000*outFile$n / (pi*12^2)
+# outFile$dif = outFile$fAvg - outFile$avg
+# outFile$nDif = outFile$nHa - outFile$nHaCloud
+
+# png('arvores.png', width = 20, height = 15, units = 'cm', res = 200)
+# plot(outFile$nDif ~ as.factor(outFile$classes), xlab="Escaneamento", ylab="Resíduo (n/ha)",
+#      main="Árvores/ha")
+# abline(h=0, col='red')
+# dev.off()
+# 
+# png('daps.png', width = 20, height = 15, units = 'cm', res = 200)
+# plot(outFile$dif ~ as.factor(outFile$classes), xlab="Escaneamento", ylab="Resíduo (cm)",
+#      main="DAP médio")
+# abline(h=0, col='red')
+# dev.off()
+
+# png('dapsEld.png', width = 15, height = 15, units = 'cm', res = 200)
+# boxplot(outFile$dif, ylab="Resíduo (cm)", main="DAP médio", ylim=c(-5,1))
+# abline(h=0, col='red')
+# dev.off()
+
+# write.csv(outFile, 'duratex.csv', quote = F)
+
 # stem model
 files = dir('stem_model', pattern = '\\.txt', full.names = T)
 lazFiles = sub('stem_model/', 'normalized/', files)
 lazFiles = sub('stems.txt', 'n.laz', lazFiles)
 
+# classes = sub('.*_p[0-9]+_(.*)_stems\\.txt','\\1',files)
+# classes = data.frame(classes)
+
+classes = c('cruzado', 'estatico', 'transecto', 'cruzado', 'estatico', 'transecto', 'estatico', 'estatico 45', 'estatico 45', 'transecto 45', 'transecto 45', 'transecto', 'cruzado', 'estatico', 'estatico 45', 'estatico 45', 'transecto 45', 'transecto 45', 'transecto', 'cruzado', 'estatico', 'estatico 45', 'estatico', 'transecto 45', 'transecto 45', 'transecto', 'estatico 90', 'estatico 90', 's', 'transecto', 'estatico 90', 'estatico 45', 'estatico 45', 'transecto 45', 'transecto 45', 'transecto', 'u', 's', 'transecto 45', 'transecto 45', 'transecto', 'transecto 45', 'transecto 45', 'transecto', 'estatico 45', 'estatico 45', 's', 'transecto')
+
 px = .025
 rMax = .125
+outFile = data.frame()
 for(i in 1:length(files)){
 file = read.table(files[i], header = T)
+file = cbind(file[,3:4], file)
+file = clip.XY(file, 20, apply(file[,1:2], 2, mean))
+file = file[,-c(1,2)]
 
-keepRansac = file$rad > (file$radius + px)
+keepRansac = file$rad < (file$radius + px)
+keepRansac[is.na(keepRansac)] = F
 rad = ifelse(keepRansac, file$rad, file$radius)
 x   = ifelse(keepRansac, file$x, file$x_center)
 y   = ifelse(keepRansac, file$y, file$y_center)
 h   = (file$z_min + file$z_max) / 2
-taper = solid(20, h, rMax, 3)
+taper = solid(20, h, rMax, 2)
 rad[rad > taper] =  NA
 
 df = data.frame(x,y,rad,h,taper, file$n)
@@ -433,12 +505,16 @@ df = lapply(df, function(x){
 df = do.call(rbind, df)
 nTrees = length(unique(df$file.n))
 
+df$scan = classes[i]
+df$file = files[i]
+outFile = rbind(outFile, df)
+
 mainName = sub('stem_model/(.+)_stems\\.txt', '\\1', files[i])
 png(str_c('pics/model/',mainName,'.png'), 30,15, units = 'cm', res = 200)
 par(mfrow=c(1,2), mar=rep(3,4), oma=rep(1,4), font.lab=2)
 plot(I(df$rad*200) ~ df$class, xlab='', ylab='')
 barplot(table(df$class))
-title(ylab = str_c('n (', nTrees, ' trees)'), line=2, font=2, xpd=T)
+title(ylab = str_c('n (', nTrees, ' árvores)'), line=2, font=2, xpd=T)
 title(main = mainName, xlab = 'H (m)', ylab = 'D (cm)', outer = T, line = -.5, font=2)
 dev.off()
 
@@ -450,6 +526,38 @@ dev.off()
 # spheres3d(df$x, df$y, 1.3, df$rad*5, col='red', alpha=.6)
 }
 
+out1 = split(outFile, as.factor(outFile$file))
+out2 = lapply(out1, function(x){
+  lst = split(x, as.factor(x$file.n))
+  lst = lapply(lst, function(y){
+    return( y[nrow(y),])
+  })
+  return(do.call(rbind, lst))
+})
+out3 = do.call(rbind, out2)
+row.names(out3) = NULL
+res = table(out3$scan, out3$class)
+res = res[,1:7]
+
+n = apply(res, 1, sum)
+for(i in 1:length(n)) res[i,] = 100*res[i,] / n[i]
+res
+
+png('heat.png', 20, 15, 'cm', res = 300)
+par(mar=c(5,8,1,5))
+image(1:7, 1:8, t(res), col = grey.colors(48, 1, .2), axes=F, xlab='', ylab='')
+axis(2, at=1:8, labels = rownames(res), tick = F, las=1)
+axis(1, at=1:7, labels = colnames(res), tick = F, las=1)
+axis(4, at=1:8, labels = paste('n=', n, sep = ''), tick = F, las=1)
+title(ylab='Escaneamento', line = 6.3)
+title(xlab='Altura (m)')
+
+for(i in 1:7){ for(j in 1:8){
+  val = round(res[j,i], digits = 0)
+  if(val == 0) next
+  text(i, j, paste(val,'%',sep=''), col='red', cex=.7)
+}}
+dev.off()
 #######################################################################
 
 files = dir('stem_model', pattern = '\\.txt', full.names = T)
