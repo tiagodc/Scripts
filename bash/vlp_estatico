@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#  give permission
+## sudo chmod u+x vlp_estatico
+
+
+# velodyne frames estaticos:
+
+# t1
+roscore &
+
+# t2
+rosrun pcl_ros pointcloud_to_pcd input:=/velodyne_points &
+
+# t3
+sleep 3 && source ~/catkin_loam/devel/setup.bash && roslaunch velodyne_pointcloud VLP16_points.launch 
+#pcap:='/home/tiago/Desktop/vo/n0.pcap' read_once:=true

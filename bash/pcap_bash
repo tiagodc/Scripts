@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#  give permission
+## sudo chmod u+x pcap_bash
+
+echo "output filename: "
+read filename
+
+echo "time to wait before starting (sec): "
+read start
+
+echo "how many seconds to collect: "
+read time
+
+sleep $start; timeout $time tcpdump src 192.168.1.201 and port 2368 or port 8308 -w $filename
+
