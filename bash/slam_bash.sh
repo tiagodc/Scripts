@@ -4,10 +4,10 @@
 ## chmod u+x slam_bash
 
 #full path to the directory containing the .pcap files
-path="/home/tiago/Desktop/esalq/"
+path="/home/tiago/Downloads/"
 
 #time (in seconds) to leave the ROS terminals open per file
-tempo=180
+tempo=90
 
 mkdir -p $path'pcd_temp'
 
@@ -28,6 +28,6 @@ do
 	timeout $tempo xterm -e 'source ~/catkin_loam/devel/setup.bash && sleep 1 && roslaunch velodyne_pointcloud VLP16_points.launch pcap:="'$file'" read_once:="true" max_range:="80" min_range:="1"' &
 
 	#convert all pcd frames to a single .laz file
-	sleep $tempo && xterm -e 'cd '$path' && ./pcd2laz -f pcd_temp -o '"${file%.pcap}.laz"' && cd pcd_temp && rm *.pcd'
+	#sleep $tempo && xterm -e 'cd '$path' && ./pcd2laz -f pcd_temp -o '"${file%.pcap}.laz"' && cd pcd_temp && rm *.pcd'
 
 done
