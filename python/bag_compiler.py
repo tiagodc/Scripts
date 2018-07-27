@@ -48,9 +48,10 @@ for file in files:
         continue
     
     print('converting ' + file)
+    newFile = re.sub(r'\.bag$', '_slam.bag', file)
 
     bag = rosbag.Bag(file)
-    wBag = rosbag.Bag(outPath + file, 'w')
+    wBag = rosbag.Bag(outPath + newFile, 'w')
 
     for topic, msg, t in bag.read_messages():
         
@@ -64,8 +65,8 @@ for file in files:
             wBag.write('imu', imuMsg, t)
         elif(topic == '/velodyne_points'):
             # print(msg.header)
-            msg.header.frame_id = 'horizontal_vlp16_link'
-            wBag.write('horizontal_laser_3d', msg, t)
+            msg.header.frame_id = 'vlp16_link'
+            wBag.write('laser_3d', msg, t)
 
             # msg.header.frame_id = 'vertical_vlp16_link'
             # wBag.write('vertical_laser_3d', msg, t)
