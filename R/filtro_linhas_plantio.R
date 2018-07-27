@@ -1,3 +1,8 @@
+# Detecção automática de linhas de plantio
+# Desenvolvedor: Tiago de Conto
+# Empresa: Forlidar Consultoria Agroflorestal LTDA
+# Disclaimer: o algoritmo e código fonte neste script são propriedade intelectual do desenvolvedor, NÃO sendo autorizada sua utilização ou distribução para fins comerciais sem autorização do mesmo.
+
 ##Vector processing=group
 ##Pontos_das_plantas=vector
 ##Linha_guia=vector
@@ -54,9 +59,9 @@ spcPla = Espaco_entre_plantas
 tol = spcLin/2
 tol2 = Distancia_maxima_da_linha_de_plantio
 
-# pts = read_sf('Fortaleza 1/PLANTAS_BRUTO.shp')
-# refLine = read_sf('Fortaleza 1/referencia.shp')
-# stands = read_sf('Fortaleza 1/Fortaleza_Talhao.shp')
+# pts = read_sf('Vila Nova IV - Plantio em nível/PLANTAS_VIVAS_VILA_NOVA_IV.shp')
+# refLine = read_sf('Vila Nova IV - Plantio em nível/ref2.shp')
+# stands = read_sf('Vila Nova IV - Plantio em nível/Vila_Nova_Talhao.shp')
 # tileSize = 50
 # spcLin = 3
 # spcPla = 2.5
@@ -167,7 +172,7 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
       }
     }
     return(multiLine)
-  }
+  } %>% as.matrix
 
   filteredPts = foreach(j = 1:ncol(lineCols), .combine = 'cbind', .packages = c('magrittr')) %dopar% {
 
@@ -214,7 +219,7 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
       linesChecked %<>% c(add, take)
     }
     return(multiLine)
-  }
+  } %>% as.matrix
   
   stichLines = foreach(i = 1:ncol(filteredPts), .combine = 'c', .packages = c('magrittr')) %dopar% {
     
