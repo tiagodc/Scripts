@@ -60,13 +60,13 @@ tol = spcLin/2
 tol2 = Distancia_maxima_da_linha_de_plantio
 
 # pts = read_sf('Vila Nova IV - Plantio em nível/PLANTAS_VIVAS_VILA_NOVA_IV.shp')
-# refLine = read_sf('Vila Nova IV - Plantio em nível/ref2.shp')
+# refLine = read_sf('Vila Nova IV - Plantio em nível/ref.shp')
 # stands = read_sf('Vila Nova IV - Plantio em nível/Vila_Nova_Talhao.shp')
 # tileSize = 50
 # spcLin = 3
 # spcPla = 2.5
 # tol = spcLin/2
-# tol2 = .3
+# tol2 = .8
 
 {
   classPts   = (pts %>% st_geometry %>% class)[1]
@@ -228,7 +228,7 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
     lineAngs = by(horizontalPts %>% as.data.frame, multiLine, function(y) lm(y[,2]~y[,1])$coefficients[2] %>% as.double %>% atan) * 180/pi
     crooked = names(lineAngs)[abs(lineAngs) > 2] %>% as.double
     
-    angAdjust = lineAngs[lineAngs < 2] %>% mean * pi/180
+    angAdjust = lineAngs[lineAngs < 2] %>% mean(na.rm=T) * pi/180
     
     rMat = matrix(c(cos(angAdjust) , sin(angAdjust), -sin(angAdjust), cos(angAdjust)), byrow = T, ncol=2)
     trueHorizontal = (rMat %*% (horizontalPts %>% t)) %>% t
@@ -281,6 +281,7 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
 }
 
 pointLog = stichLines[seq(2,length(stichLines),2)] %>% do.call(what = cbind)
+# pointLog = multiLine %>% as.matrix
 pts2 = pts[apply(pointLog,1,function(x) !all(is.na(x))),]
 
 rMat = matrix(c(cos(-ang) , sin(-ang), -sin(-ang), cos(-ang)), byrow = T, ncol=2)
