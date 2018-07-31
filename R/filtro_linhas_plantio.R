@@ -59,14 +59,14 @@ spcPla = Espaco_entre_plantas
 tol = spcLin/2
 tol2 = Distancia_maxima_da_linha_de_plantio
 
-# pts = read_sf('Vila Nova IV - Plantio em nível/PLANTAS_VIVAS_VILA_NOVA_IV.shp')
-# refLine = read_sf('Vila Nova IV - Plantio em nível/ref.shp')
-# stands = read_sf('Vila Nova IV - Plantio em nível/Vila_Nova_Talhao.shp')
+# pts = read_sf('teste/plantas_t2.shp')
+# refLine = read_sf('teste/ref_t2.shp')
+# stands = read_sf('teste/Faz_Pereira.shp')
 # tileSize = 50
 # spcLin = 3
-# spcPla = 2.5
+# spcPla = 2
 # tol = spcLin/2
-# tol2 = .8
+# tol2 = .2
 
 {
   classPts   = (pts %>% st_geometry %>% class)[1]
@@ -115,9 +115,11 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
 
     multiLine = rep(NA, nrow(horizontalPts))
     lineNumber = 0
-
+    
     inStand = pointPerStand[,i]
-
+    
+    if(!all(inStand)) return(NA)
+    
     lims = apply(horizontalPts[ inStand ,], 2, range)
     xBreaks = seq(lims[1,1] - tileSize, lims[2,1] + tileSize, tileSize)
     yBreaks = seq(lims[1,2] - tileSize, lims[2,2] + tileSize, tileSize)
@@ -177,6 +179,9 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
   filteredPts = foreach(j = 1:ncol(lineCols), .combine = 'cbind', .packages = c('magrittr')) %dopar% {
 
     multiLine = lineCols[,j]
+    
+    if(all(is.na(multiLine))) return(NA)
+    
     lineVals = unique(multiLine)
     lineVals = lineVals[!is.na(lineVals)]
 
@@ -224,6 +229,8 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
   stichLines = foreach(i = 1:ncol(filteredPts), .combine = 'c', .packages = c('magrittr')) %dopar% {
     
     multiLine = filteredPts[,i]
+    
+    if(all(is.na(multiLine))) return(NULL)
     
     lineAngs = by(horizontalPts %>% as.data.frame, multiLine, function(y) lm(y[,2]~y[,1])$coefficients[2] %>% as.double %>% atan) * 180/pi
     crooked = names(lineAngs)[abs(lineAngs) > 2] %>% as.double
