@@ -1,3 +1,8 @@
+# Detecção automática de linhas de plantio
+# Desenvolvedor: Tiago de Conto
+# Empresa: Forlidar Consultoria Agroflorestal LTDA
+# Disclaimer: o algoritmo e código fonte neste script são propriedade intelectual do desenvolvedor, NÃO sendo autorizada sua utilização ou distribução para fins comerciais sem autorização do mesmo.
+
 ##Vector processing=group
 ##Pontos_das_plantas=vector
 ##Linha_guia=vector
@@ -54,14 +59,14 @@ spcPla = Espaco_entre_plantas
 tol = spcLin/2
 tol2 = Distancia_maxima_da_linha_de_plantio
 
-# pts = read_sf('Fortaleza 1/PLANTAS_BRUTO.shp')
-# refLine = read_sf('Fortaleza 1/referencia.shp')
-# stands = read_sf('Fortaleza 1/Fortaleza_Talhao.shp')
+# pts = read_sf('teste/plantas_t2.shp')
+# refLine = read_sf('teste/ref_t2.shp')
+# stands = read_sf('teste/Faz_Pereira.shp')
 # tileSize = 50
 # spcLin = 3
-# spcPla = 2.5
+# spcPla = 2
 # tol = spcLin/2
-# tol2 = .3
+# tol2 = .2
 
 {
   classPts   = (pts %>% st_geometry %>% class)[1]
@@ -110,9 +115,11 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
 
     multiLine = rep(NA, nrow(horizontalPts))
     lineNumber = 0
-
+    
     inStand = pointPerStand[,i]
-
+    
+    if(!all(inStand)) return(NA)
+    
     lims = apply(horizontalPts[ inStand ,], 2, range)
     xBreaks = seq(lims[1,1] - tileSize, lims[2,1] + tileSize, tileSize)
     yBreaks = seq(lims[1,2] - tileSize, lims[2,2] + tileSize, tileSize)
@@ -167,11 +174,14 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
       }
     }
     return(multiLine)
-  }
+  } %>% as.matrix
 
   filteredPts = foreach(j = 1:ncol(lineCols), .combine = 'cbind', .packages = c('magrittr')) %dopar% {
 
     multiLine = lineCols[,j]
+    
+    if(all(is.na(multiLine))) return(NA)
+    
     lineVals = unique(multiLine)
     lineVals = lineVals[!is.na(lineVals)]
 
@@ -214,16 +224,18 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
       linesChecked %<>% c(add, take)
     }
     return(multiLine)
-  }
+  } %>% as.matrix
   
   stichLines = foreach(i = 1:ncol(filteredPts), .combine = 'c', .packages = c('magrittr')) %dopar% {
     
     multiLine = filteredPts[,i]
     
+    if(all(is.na(multiLine))) return(NULL)
+    
     lineAngs = by(horizontalPts %>% as.data.frame, multiLine, function(y) lm(y[,2]~y[,1])$coefficients[2] %>% as.double %>% atan) * 180/pi
     crooked = names(lineAngs)[abs(lineAngs) > 2] %>% as.double
     
-    angAdjust = lineAngs[lineAngs < 2] %>% mean * pi/180
+    angAdjust = lineAngs[lineAngs < 2] %>% mean(na.rm=T) * pi/180
     
     rMat = matrix(c(cos(angAdjust) , sin(angAdjust), -sin(angAdjust), cos(angAdjust)), byrow = T, ncol=2)
     trueHorizontal = (rMat %*% (horizontalPts %>% t)) %>% t
@@ -276,6 +288,7 @@ horizontalPts = (rMat %*% ((pts %>% st_coordinates)[,1:2] %>% t)) %>% t
 }
 
 pointLog = stichLines[seq(2,length(stichLines),2)] %>% do.call(what = cbind)
+# pointLog = multiLine %>% as.matrix
 pts2 = pts[apply(pointLog,1,function(x) !all(is.na(x))),]
 
 rMat = matrix(c(cos(-ang) , sin(-ang), -sin(-ang), cos(-ang)), byrow = T, ncol=2)
