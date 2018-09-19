@@ -43,6 +43,8 @@ rotateCloud = function(file, lasDir){
                ' -odix _temp -olaz -no_bulge -no_stddev -wilderness')
   system(cmd)
   
+  outCloud = readLAS(file)
+  
   file = sub('\\.laz','_temp.laz',file)
   cloud = readLAS(file)
   unlink(file, force = T)
@@ -60,11 +62,11 @@ rotateCloud = function(file, lasDir){
   
   rot = rotationMatrix(0, rz, rx)
   
-  cloud_norm = ( as.matrix(cloud@data[,1:3]) %*% as.matrix(rot) ) %>% as.data.frame
+  cloud_norm = ( as.matrix(outCloud@data[,1:3]) %*% as.matrix(rot) ) %>% as.data.frame
   
-  cloud@data[,1:3] = cloud_norm
+  outCloud@data[,1:3] = cloud_norm
   
-  return(lasfilter(cloud, Classification != 2))
+  return(lasfilter(outCloud, Classification != 2))
 }
 angle = function (a, b){
   prod = a %*% b
