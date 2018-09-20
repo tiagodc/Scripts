@@ -35,7 +35,7 @@ rotationMatrix = function (ax, az, ax2){
   ro.mat = Rx2 %*% Rz %*% Rx
   return(ro.mat)
 }
-rotateCloud = function(file, lasDir){
+rotateCloud = function(file, lasDir=''){
   
   systring = ifelse(Sys.info()[['sysname']] == 'Linux', 'wine ', '')
   
@@ -66,7 +66,12 @@ rotateCloud = function(file, lasDir){
   
   outCloud@data[,1:3] = cloud_norm
   
-  return(lasfilter(outCloud, Classification != 2))
+  return(
+    list(
+      cloud = lasfilter(outCloud, Classification != 2),
+      matrix = as.matrix(rot)
+    )
+  )
 }
 angle = function (a, b){
   prod = a %*% b
