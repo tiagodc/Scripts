@@ -96,6 +96,8 @@ for rBag in bagFiles:
     pcdDir = 'pcd_temp'
     oLaz = re.sub(r'\.bag$', r'.laz', rBag)
 
+    rosKill = r'rosnode kill -a && killall -9 rosmaster'
+
     print('### processing: ' + rBag)
 
 
@@ -128,7 +130,6 @@ for rBag in bagFiles:
 
     launchPref = r'hector_' if hectorSlam else ''
     oBag = re.sub(r'(\.bag$)', launchPref + r'_slam.bag', wBag)
-    rosKill = r'rosnode kill -a && killall -9 rosmaster'
 
     bag = rosbag.Bag(wBag)
     bagTime = math.ceil(5 + (bag.get_end_time() - bag.get_start_time()) / playRatio)
@@ -151,6 +152,7 @@ for rBag in bagFiles:
     os.system(rosKill)
 
     #########################################
+    # oBag = rBag
     print('# writing LAZ point cloud')
 
     if os.path.exists(pcdDir): 
