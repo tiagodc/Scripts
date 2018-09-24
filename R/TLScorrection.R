@@ -1,9 +1,9 @@
 require(lidR)
 require(rgl)
 require(magrittr)
-source('TLSprocess.R')
+source('~/Desktop/Scripts/R/TLSprocess.R')
 
-setwd('/media/tiago/OS/Work/gerdau/')
+setwd('/media/tiago/OS/Work/gerdau/dia2')
 
 swapAxes = function(las, swap='xyz'){
   
@@ -44,9 +44,9 @@ cloudSample = function(las, size=500000){
 
 lasFiles = dir(pattern = '\\.laz$')
 
-for(i in 1:10){
+for(i in 1:length(lasFiles)){
   file = lasFiles[i] %T>% print
-  slamFile = sub('_sensorMsg_slam\\.laz', '_slam_path.txt', file) %T>% print
+  slamFile = sub('\\.laz', '_slam_path.txt', file) %T>% print
   
   las = readLAS(file)
   slam = read.table(slamFile)
@@ -57,7 +57,7 @@ for(i in 1:10){
     swap = 'xzy'
     las %<>% swapAxes(swap) ; slam %<>% swapAxes(swap)
     
-  } else if(grepl('45\\.laz$',file)){
+  } else if(grepl('45\\.laz$',file) || grepl('_bad\\.laz$',file)){
     # 45
     las@data$Z = -las@data$Z ; slam[,4] = -slam[,4]
   }

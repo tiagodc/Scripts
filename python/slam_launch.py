@@ -68,7 +68,25 @@ print('# defining global variables')
 
 
 # bag files path
-os.chdir(r'/media/tiago/OS/Work/gerdau')
+os.chdir(r'/media/tiago/OS/Work/gerdau/dia2')
+
+# variables used to convert imu_data and parse pointCloud2
+tops = [r'/velodyne_points', r'/ekf_quat', r'/imu_data']
+radius = None
+swap = 'xyz'
+
+# variables definig SLAM parameters
+hectorSlam = False
+useImu = True
+playRatio = 0.25
+recTopics = [r'/imu/data', r'/integrated_to_init', r'/velodyne_cloud_registered']
+sourcePath = r'~/catkin_loam'
+
+# variables used for generating the LAZ point cloud
+pcd2laz = '~/pcd2laz/bin/Release/pcd2laz' 
+pcdDir = 'pcd_temp'
+
+rosKill = r'rosnode kill -a && killall -9 rosmaster'
 
 # list all bag files
 bagFiles = []
@@ -78,28 +96,11 @@ for i in os.listdir('.'):
 
 
 for rBag in bagFiles:
-    # variables used to convert imu_data and parse pointCloud2
+    
     # rBag = r'20180627_euc1_x_hor.bag'
-    tops = [r'/velodyne_points', r'/ekf_quat', r'/imu_data']
-    radius = None
-    swap = 'xyz'
-
-    # variables definig SLAM parameters
-    hectorSlam = False
-    useImu = True
-    playRatio = 0.25
-    recTopics = [r'/imu/data', r'/integrated_to_init', r'/velodyne_cloud_registered']
-    sourcePath = r'~/catkin_loam'
-
-    # variables used for generating the LAZ point cloud
-    pcd2laz = '~/pcd2laz/bin/Release/pcd2laz' 
-    pcdDir = 'pcd_temp'
-    oLaz = re.sub(r'\.bag$', r'.laz', rBag)
-
-    rosKill = r'rosnode kill -a && killall -9 rosmaster'
-
     print('### processing: ' + rBag)
-
+    
+    oLaz = re.sub(r'\.bag$', r'.laz', rBag)
 
     #########################################
     print('# getting sensorMsg topics')
@@ -129,7 +130,7 @@ for rBag in bagFiles:
     print('# performing SLAM')
 
     launchPref = r'hector_' if hectorSlam else ''
-    oBag = re.sub(r'(\.bag$)', launchPref + r'_slam.bag', wBag)
+    oBag = re.sub(r'(\.bag$)', r'_' + launchPref + r'slam.bag', wBag)
 
     bag = rosbag.Bag(wBag)
     bagTime = math.ceil(5 + (bag.get_end_time() - bag.get_start_time()) / playRatio)
