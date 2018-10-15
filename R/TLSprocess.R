@@ -73,6 +73,117 @@ rotateCloud = function(file, lasDir=''){
     )
   )
 }
+correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
+  
+  if(class(cloud) == 'LAS'){
+    
+    if(shift_z_axis){
+      
+      y = cloud@data$Y
+      z = cloud@data$Z
+      
+      cloud@data$Z = y
+      cloud@data$Y = z
+      
+    }  
+    
+    if(upside_down){
+      
+      cloud@data$Z = -cloud@data$Z
+      
+    }
+    
+    if(mirrored){
+      
+      cloud@data$Y = -cloud@data$Y
+      
+    }
+    
+  }else{
+    
+    if(shift_z_axis){
+      
+      y = cloud[,2]
+      z = cloud[,3]
+      
+      cloud[,3] = y
+      cloud[,2] = z
+      
+    }  
+    
+    if(upside_down){
+      
+      cloud[,3] = -cloud[,3]
+      
+    }
+    
+    if(mirrored){
+      
+      cloud[,2] = -cloud[,2]
+      
+    }
+    
+  }
+  
+  return(cloud)
+  
+}
+rotateCloudInternal = function(cloud, keepGround = T){
+  
+  cloud = LAS(cloud@data[,1:5]) %>% lasground(csf(), F)
+  
+  chao = lasfilter(cloud, Classification == 2)
+  cen = apply(chao@data[,1:2], 2, mean) %>% as.double
+  chao_clip = lasclipCircle(chao, cen[1], cen[2], 10)
+  
+  az = anguloX(chao_clip@data[,1:3], 'z', cov)
+  ax = anguloX(chao_clip@data[,1:3], 'x', cov)
+  ay = anguloX(chao_clip@data[,1:3], 'y', cov)
+  
+  rz = ifelse(az > 90, 180-az, -az)
+  rx = ifelse(ay < 90, -ax, ax)   
+  
+  rot = rotationMatrix(0, rz, rx)
+  
+  cloud@data[,1:3] = ( as.matrix(cloud@data[,1:3]) %*% as.matrix(rot) ) %>% as.data.frame
+  
+  if(!keepGround) cloud %<>% lasfilter(Classification != 2)
+  
+  return(
+    list(
+      cloud = cloud,
+      matrix = as.matrix(rot)
+    )
+  )
+}
+lowResNormalize = function(cloud, res=5, keepGround=T){
+  
+  tempFun = function(cloud, res){
+    dtm = grid_terrain(cloud, res, knnidw())
+    ncld = lasnormalize(cloud, dtm)
+    return(ncld)
+  }
+  
+  normCloud = NULL
+  while(is.null(normCloud)){
+    
+    normCloud = tryCatch(
+      expr = tempFun(cloud, res),
+      error = function(e){ return(NULL) }
+    )
+    
+    if(is.null(normCloud)){
+      res = res + .5
+      paste('trying resolution of', res,'m') %>% print
+    }
+    
+  }
+  
+  if(!keepGround) normCloud %<>% lasfilter(Classification != 2)
+  
+  return(normCloud)
+  
+}
 angle = function (a, b){
   prod = a %*% b
   lprod = sqrt(sum(a^2)) * sqrt(sum(b^2))
