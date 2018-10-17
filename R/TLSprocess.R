@@ -156,32 +156,20 @@ rotateCloudInternal = function(cloud, keepGround = T){
     )
   )
 }
-lowResNormalize = function(cloud, res=5, keepGround=T){
+lowResNormalize = function(cloud, res=.5, keepGround=T){
   
-  tempFun = function(cloud, res){
-    dtm = grid_terrain(cloud, res, knnidw())
-    ncld = lasnormalize(cloud, dtm)
-    return(ncld)
-  }
+  # make a raster that encompass the point cloud
+  grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double %>% extent %>% raster
+  res(grid) = res
   
-  normCloud = NULL
-  while(is.null(normCloud)){
-    
-    normCloud = tryCatch(
-      expr = tempFun(cloud, res),
-      error = function(e){ return(NULL) }
-    )
-    
-    if(is.null(normCloud)){
-      res = res + .5
-      paste('trying resolution of', res,'m') %>% print
-    }
-    
-  }
+  # Force to interpolate in these pixels
+  dtm = grid_terrain(cloud, res = grid, algorithm = knnidw())
   
-  if(!keepGround) normCloud %<>% lasfilter(Classification != 2)
+  cloud %<>% lasnormalize(dtm)
+
+  if(!keepGround) cloud %<>% lasfilter(Classification != 2)
   
-  return(normCloud)
+  return(cloud)
   
 }
 angle = function (a, b){
