@@ -130,7 +130,7 @@ correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
 }
 rotateCloudInternal = function(cloud, keepGround = T){
   
-  cloud = LAS(cloud@data[,1:5]) %>% lasground(csf(), F)
+  cloud = LAS(cloud@data[,1:5]) %>% lasground(csf(class_threshold = .2), F)
   
   chao = lasfilter(cloud, Classification == 2)
   cen = apply(chao@data[,1:2], 2, mean) %>% as.double
@@ -156,7 +156,7 @@ rotateCloudInternal = function(cloud, keepGround = T){
     )
   )
 }
-lowResNormalize = function(cloud, res=.5, keepGround=T){
+dtmNormalize = function(cloud, res=.5, keepGround=T){
   
   # make a raster that encompass the point cloud
   grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double %>% extent %>% raster
