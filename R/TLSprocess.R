@@ -159,7 +159,9 @@ rotateCloudInternal = function(cloud, keepGround = T){
 dtmNormalize = function(cloud, res=.5, keepGround=T){
   
   # make a raster that encompass the point cloud
-  grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double %>% extent %>% raster
+  grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double 
+  grid = grid*1.1
+  grid %<>% extent %>% raster
   res(grid) = res
   
   # Force to interpolate in these pixels
@@ -437,4 +439,22 @@ cloudMeasures = function(diams, cloud, plotRad = 12.7, baseHeight=.3, hInt = .25
   colnames(res) = c('ba', 'dbh', 'dbh_sd', 'hd')
   
   return(list(plot = res, interpolated = splInfo, modelled = modInfo))
+}
+gpsTimeFilter = function(cloud, to=NULL, from=NULL){
+  
+  # qt0 = min(cloud@data$gpstime)
+  # qt1 = max(cloud@data$gpstime)
+  
+  if(!is.null(from)){
+    qt0 = quantile(cloud@data$gpstime, from)
+    cloud@data = cloud@data[ cloud@data$gpstime > qt0 ,]
+  }
+  
+  if(!is.null(to)){
+    qt1 = quantile(cloud@data$gpstime, to)
+    cloud@data = cloud@data[ cloud@data$gpstime < qt1 ,]
+  }
+  
+  return(LAS(cloud@data))
+  
 }
