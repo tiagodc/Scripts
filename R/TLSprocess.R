@@ -65,6 +65,7 @@ rotateCloud = function(file, lasDir=''){
   cloud_norm = ( as.matrix(outCloud@data[,1:3]) %*% as.matrix(rot) ) %>% as.data.frame
   
   outCloud@data[,1:3] = cloud_norm
+  outCloud = LAS(outCloud@data)
   
   return(
     list(
@@ -457,4 +458,200 @@ gpsTimeFilter = function(cloud, to=NULL, from=NULL){
   
   return(LAS(cloud@data))
   
+}
+makeCircle = function(x, y, rad){
+  angs = seq(0, 2*pi, length.out = 12)
+  xcos = x + rad * cos(angs)
+  ysin = y + rad * sin(angs)
+  return(data.frame(x=xcos, y=ysin))
+}
+writePlotLayers = function(cloud, report, prefix='temp', reduce=F, treeId=NULL, timeCols = c('green', 'orange'), treeCol = 'brown', circleCol='blue', labelCol='black'){
+  
+  if(!is.null(treeId)){
+    cloud %<>% lasfilter(UserData == treeId)
+    report = report[report$tree == treeId,]
+  }
+  
+  hvals = report$h_min %>% unique %>% sort
+  hint = hvals[2] - hvals[1]
+  
+  xlim = (cloud@data$X %>% range)*1.1
+  ylim = (cloud@data$Y %>% range)*1.1
+  
+  if(reduce) cloud %<>% lasfilterdecimate(random(500))
+  
+  for(i in 2:length(hvals)){
+    # i = 5    
+    paste('layer', i-1, 'of', length(hvals)-1) %>% print
+    
+    layer = lasfilter(cloud, Z >= hvals[i-1] & Z < hvals[i])
+    stemPts = lasfilter(layer, Classification == 30)
+    otherPts = lasfilter(layer, Classification != 30)
+    
+    diams = report[report$h_max == hvals[i],]
+    
+    colRamp = colorRampPalette(timeCols)
+    unTimes = cloud@data$gpstime %>% unique %>% sort %>% as.character
+    unCols = colRamp(unTimes %>% length)
+    names(unCols) = unTimes
+    
+    fileName = paste(prefix, hvals[i-1], hvals[i], sep='_') %>% paste0('.svg')
+    
+    {
+      # png('temp.png', 100, 100, 'cm', res=500)
+      # pdf('temp.pdf', width = 50, height = 40)
+      svg(fileName, width = 50, height = 40)
+      
+      layout(matrix(c(rep(1,9),2,3,4), nrow = 3, byrow = F))
+      par(mar=c(25,20,10,10))
+      
+      plot(otherPts@data[,1:2], xlim=xlim, ylim=ylim, cex=.02, pch=20, asp=1, cex.lab=10, main=paste(hvals[i-1], 'a', hvals[i], 'm acima do solo'), cex.main=10, cex.axis=8,
+           col=ifelse(otherPts@data$Classification == 20, treeCol, 'black'), xlab='x (m)', ylab='y (m)', mgp=c(12,5,0) )
+      
+      points(stemPts@data$X, stemPts@data$Y, cex=.05, pch=20, 
+             col=unCols[ stemPts@data$gpstime %>% as.character ])
+      
+      apply(diams[,c('x','y', 'rad')], 1, function(x){
+        makeCircle(x[1], x[2], x[3]) %>% lines(col=circleCol, lwd=1.5) 
+      })
+      
+      lineSpace = .05
+      xlines = seq(xlim[1], xlim[2]+lineSpace, lineSpace)
+      ylines = seq(ylim[1], ylim[2]+lineSpace, lineSpace)
+      
+      abline(v=xlines, lty=1, lwd=.25, col='lightgrey')
+      abline(h=ylines, lty=1, lwd=.25, col='lightgrey')
+      
+      lineSpace = .1
+      xlines = seq(xlim[1], xlim[2]+lineSpace, lineSpace)
+      ylines = seq(ylim[1], ylim[2]+lineSpace, lineSpace)
+      
+      abline(v=xlines, lty=3, lwd=.5, col='red')
+      abline(h=ylines, lty=3, lwd=.5, col='red')
+      
+      labs = paste0(diams$tree, '\n', round(diams$rad*200, 2))
+      graphics::text(x=diams$x, y=diams$y, labels=labs, cex=.66, col=labelCol)
+      
+      main = paste('Dm =', round(mean(diams$rad*200), 2), 'cm')
+      hist(diams$rad*200, col=rgb(.2,.2,1,.6), main=main, freq=T, xlab='D (cm)', ylab='n', cex.main=7, cex.axis=5, cex.lab=7, mgp=c(12,5,0))
+      abline(v = mean(diams$rad*200), col='black', lty=2, lwd=10)
+      
+      plot(0,cex=0,axes=F, xlab='', ylab='')
+      plot(0,cex=0,axes=F, xlab='', ylab='')
+      legend('center', pch = c(rep(20,4), 8, 21, rep(NA,2)),
+             lty=c(rep(NA, 6),3,1), lwd=5, cex=5, bty='n',
+             col = c(timeCols, treeCol, 'black', labelCol, circleCol, 'red', 'lightgray'),
+             # col = c('green', 'orange', 'brown', 'black', 'black', 'blue', 'red', 'lightgray'),
+             legend = c('pontos de tronco - início', 
+                        'pontos de tronco - fim',
+                        'pontos da árvore',
+                        'outros',
+                        'ID da árvore / diâmetro (cm)',
+                        'seção de tronco',
+                        'marcadores de 10 cm',
+                        'marcadores de 5 cm'))
+      box()
+      
+      dev.off()
+    }
+    
+  }
+}
+checkLayer3d = function(cloud, report, h_min=0, newPlot=F, reduce=F, treeId=NULL, timeCols = c('green', 'orange'), treeCol='brown', circleCol='blue', labelCol='white'){
+  
+  if(reduce) cloud %<>% lasfilterdecimate(random(500))
+  if(!is.null(treeId)) cloud %<>% lasfilter(UserData == treeId)
+  
+  diams = report[report$h_min == h_min,]
+  if(!is.null(treeId)) diams = diams[ diams$tree == treeId, ]
+  h_max = diams$h_max[1]
+  layer = lasfilter(cloud, Z >= h_min & Z < h_max)
+  
+  colRamp = colorRampPalette(timeCols)
+  unTimes = cloud@data$gpstime %>% unique %>% sort %>% as.character
+  unCols = colRamp(unTimes %>% length)
+  names(unCols) = unTimes
+  
+  stemPts = lasfilter(layer, Classification == 30)
+  treePts = lasfilter(layer, Classification == 20)
+  otherPts = lasfilter(layer, Classification != 30 & Classification != 20)
+  
+  if(newPlot) rgl.open()
+  clear3d() ; bg3d('black')
+  
+  rgl.points(stemPts@data[,1:3], color=unCols[ stemPts@data$gpstime %>% as.character ], size=1.5)
+  rgl.points(treePts@data[,1:3], color=treeCol, size=1.5)
+  rgl.points(otherPts@data[,1:3], color='white', size=.5)
+  
+  spheres3d(diams$x, diams$y, (diams$h_min + diams$h_max)/2, diams$rad, col=circleCol)
+  
+  txt = paste('id', diams$tree, '-', round(diams$rad*200, 2), 'cm')
+  text3d(diams$x, diams$y, diams$h_max, txt, color=labelCol, size=.5)
+  
+  axes3d(col='white')
+  
+}
+checkTree3d = function(cloud, report, treeId, newPlot=F, trunkOnly=F, timeCols = c('green', 'orange'), treeCol='brown', circleCol='blue', labelCol='white'){
+  
+  cloud %<>% lasfilter(UserData %in% treeId)
+  report = report[ report$tree %in% treeId ,]
+  
+  if(newPlot) rgl.open()
+  
+  bg3d('black')
+  
+  stemPts = lasfilter(cloud, Classification == 30 )
+  treePts = lasfilter(cloud, Classification == 20 )
+  otherPts = lasfilter(cloud, Classification != 30 & Classification != 20 )
+  
+  colRamp = colorRampPalette(timeCols)
+  unTimes = cloud@data$gpstime %>% unique %>% sort %>% as.character
+  unCols = colRamp(unTimes %>% length)
+  names(unCols) = unTimes
+  
+  rgl.points(stemPts@data[,1:3], size=1.5, color=unCols[ stemPts@data$gpstime %>% as.character ])
+  
+  if(!trunkOnly){
+    rgl.points(treePts@data[,1:3], size=1.5, color=treeCol)
+    rgl.points(otherPts@data[,1:3], size=.5, color='white')    
+  }
+  
+  
+  spheres3d(report$x, report$y, (report$h_min + report$h_max)/2, report$rad, color=circleCol)
+  txt = paste(round(report$rad*200,2), 'cm')
+  text3d(report$x, report$y, report$h_min, txt, color=labelCol)
+  
+  axes3d(col='white')
+}
+treePlot3d = function(cloud, report){
+  rgl.open(); bg3d('black') ; clear3d()
+  spheres3d(report$x, report$y, (report$h_min + report$h_max)/2, report$rad, color='orange')
+  rgl.points(cloud@data[cloud@data$Classification == 30,], color = "darkred", size=1)
+  rgl.points(cloud@data[cloud@data$Classification == 20,], color = "darkgreen", size=.5)
+  rgl.points(cloud@data[cloud@data$Classification == 2,], color = "brown", size=.5)
+  rgl.points(cloud@data[cloud@data$Classification == 1,], color = "darkgray", size=.5)
+}
+redirectCloud = function(cloud, slam){
+  startLim = floor(nrow(slam) / 3)
+  pathStart = slam[1:startLim,]
+  
+  ax = anguloX(pathStart[,2:4], 'x')
+  ay = anguloX(pathStart[,2:4], 'y')
+  
+  rx = ifelse(ay < 90, -ax, ax)   
+  
+  rot = rotationMatrix(0, 0, rx)
+  
+  xyz  = ( as.matrix(cloud@data[,1:3]) %*% as.matrix(rot) ) %>% as.data.frame
+  slam[,2:4] = ( as.matrix(slam[,2:4]) %*% as.matrix(rot) ) %>% as.data.frame
+  
+  cloud@data[,1:3] = xyz
+  cloud = LAS(cloud@data)
+  
+  return(
+    list(
+      cloud = cloud,
+      slam = slam
+    )
+  )
 }
