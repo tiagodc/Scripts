@@ -104,23 +104,23 @@ correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
     
     if(shift_z_axis){
       
-      y = cloud[,2]
-      z = cloud[,3]
+      y = cloud[,3]
+      z = cloud[,4]
       
       cloud[,3] = y
-      cloud[,2] = z
+      cloud[,4] = z
       
     }  
     
     if(upside_down){
       
-      cloud[,3] = -cloud[,3]
+      cloud[,4] = -cloud[,4]
       
     }
     
     if(mirrored){
       
-      cloud[,2] = -cloud[,2]
+      cloud[,3] = -cloud[,3]
       
     }
     
