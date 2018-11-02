@@ -157,11 +157,11 @@ rotateCloudInternal = function(cloud, keepGround = T){
     )
   )
 }
-dtmNormalize = function(cloud, res=.5, keepGround=T){
+dtmNormalize = function(cloud, res=.5, keepGround=T, bufferFactor = 1.5){
   
   # make a raster that encompass the point cloud
   grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double 
-  grid = grid*1.5
+  grid = grid*bufferFactor
   grid %<>% extent %>% raster
   res(grid) = res
   
