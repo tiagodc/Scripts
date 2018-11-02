@@ -161,7 +161,7 @@ dtmNormalize = function(cloud, res=.5, keepGround=T){
   
   # make a raster that encompass the point cloud
   grid = cloud@data[,1:2] %>% apply(2,range) %>% as.double 
-  grid = grid*1.1
+  grid = grid*1.5
   grid %<>% extent %>% raster
   res(grid) = res
   
@@ -542,12 +542,12 @@ writePlotLayers = function(cloud, report, prefix='temp', reduce=F, treeId=NULL, 
              lty=c(rep(NA, 6),3,1), lwd=5, cex=5, bty='n',
              col = c(timeCols, treeCol, 'black', labelCol, circleCol, 'red', 'lightgray'),
              # col = c('green', 'orange', 'brown', 'black', 'black', 'blue', 'red', 'lightgray'),
-             legend = c('pontos de tronco - início', 
+             legend = c('pontos de tronco - inï¿½cio', 
                         'pontos de tronco - fim',
-                        'pontos da árvore',
+                        'pontos da ï¿½rvore',
                         'outros',
-                        'ID da árvore / diâmetro (cm)',
-                        'seção de tronco',
+                        'ID da ï¿½rvore / diï¿½metro (cm)',
+                        'seï¿½ï¿½o de tronco',
                         'marcadores de 10 cm',
                         'marcadores de 5 cm'))
       box()
