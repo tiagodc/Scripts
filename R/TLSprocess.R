@@ -107,8 +107,8 @@ correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
       y = cloud[,3]
       z = cloud[,4]
       
-      cloud[,3] = y
-      cloud[,4] = z
+      cloud[,4] = y
+      cloud[,3] = z
       
     }  
     
