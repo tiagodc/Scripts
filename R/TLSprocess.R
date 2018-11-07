@@ -658,3 +658,121 @@ redirectCloud = function(cloud, slam){
     )
   )
 }
+
+importResults = function(lasName, maxRad=.15, minPts=20){
+  repName = sub('\\.laz$', '_results.txt',lasName)
+  
+  las = readLAS(lasName)
+  rep = read.table(repName, header = T)
+  
+  hMin = min(rep$h_min)
+  rep$h_min = rep$h_min - hMin
+  rep$h_max = rep$h_max - hMin
+  
+  las@data$Z = las@data$Z - hMin
+  
+  las = LAS(las@data)
+  rep = rep[ rep$rad < maxRad & rep$h_max > 0 & rep$n > minPts ,]
+  
+  return(list(las=las, report=rep))
+  
+}
+
+getHeigths = function(las, treeRadius=1.5, graph=T){
+  
+  ids = las@data$UserData %>% unique
+  ids = ids[ids != 0]
+  
+  hs = sapply(ids, function(i){
+    tree = lasfilter(las, UserData == i)
+    x = mean(tree@data$X)
+    y = mean(tree@data$Y)
+    tree = lasclipCircle(las, x, y, treeRadius)
+    return(max(tree@data$Z))
+  })
+  
+  if(graph){
+    hist(hs, main='Tree Height', xlab='h (m)', ylab='n')
+    abline(v=mean(hs), lty=2, lwd=3)
+  }
+  
+  df = data.frame(id=ids, h=hs)
+  
+  return(df)
+  
+}
+
+getDbhs = function(rep, hRange=c(1,1.6), graph=T){
+  layer = rep[ rep$h_min >= hRange[1] & rep$h_max <= hRange[2] ,]
+  rads = tapply(layer$rad, layer$tree, mean)
+  df = data.frame(id = rads %>% names %>% as.double, dbh = rads*200)
+  row.names(df) = NULL
+  
+  if(graph){
+    hist(df$dbh, main='Tree DBH', xlab='DBH (cm)', ylab='n')
+    abline(v=mean(df$dbh), lwd=3, lty=2)
+  }
+  
+  return(df)
+}
+
+plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gridRes=.025, export=T, pref='temp'){
+  ids = las@data$UserData %>% unique
+  ids = ids[ids != 0]
+  colRamp = colorRampPalette(timeCols)
+  angs = seq(0,pi*2, length.out = 12)
+  
+  for(i in ids){
+    
+    paste('tree', i) %>% print
+    
+    # i=ids[1]
+    cld = lasfilter(las, UserData == i & Z >= hRange[1] & Z <= hRange[2])
+    seg = rep[ rep$h_min >= hRange[1] & rep$h_max <= hRange[2] & rep$tree == i ,]
+    
+    fileName = paste0(pref, '_', i, '.png')
+    
+    if(export) png(fileName, 15, 15, units = 'cm', res = 300)
+    
+    plot(cld@data[ cld@data$Classification != 30 ,1:2], pch=20, cex=.75, asp=1,
+         main=paste0('id ', i, '\n',hRange[1], ' - ', hRange[2], ' m'))
+    
+    trk = cld@data[ cld@data$Classification == 30 , ]
+    unTimes = trk$gpstime %>% unique %>% sort %>% as.character
+    unCols = colRamp(unTimes %>% length)
+    names(unCols) = unTimes
+    
+    points(trk$X, 
+           trk$Y,
+           col=unCols[trk$gpstime %>% as.character],
+           pch=20, cex=.75
+    )
+    
+    mx = seg$x %>% mean
+    my = seg$y %>% mean
+    mr = mean(trk$PointSourceID) / 1000
+    cx = cos(angs) * mr + mx
+    cy = sin(angs) * mr + my
+    lines(cx, cy, lwd=2, col='red')
+    
+    apply(seg, 1, function(x){
+      points(x['x'], x['y'], col='blue', pch=3, cex=2)
+      
+      cx = cos(angs) * x['rad'] + x['x']
+      cy = sin(angs) * x['rad'] + x['y']
+      
+      lines(cx, cy, lwd=2, col='blue')
+      
+    })
+    
+    vrg = range(cld@data$X) %>% round(1)
+    vrg = seq(vrg[1], vrg[2], gridRes)
+    abline(v=vrg, lty=2, lwd=.5, col='red')
+    
+    hrg = range(cld@data$Y) %>% round(1)
+    hrg = seq(hrg[1], hrg[2], gridRes)
+    abline(h=hrg, lty=2, lwd=.5, col='red')
+    
+    if(export) dev.off()
+  }
+}
