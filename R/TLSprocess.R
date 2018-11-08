@@ -74,7 +74,7 @@ rotateCloud = function(file, lasDir=''){
     )
   )
 }
-correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
+correctCloud = function(cloud, mirrored_x=F, mirrored_y=F, upside_down=F, shift_z_axis=F){
 
   if(class(cloud) == 'LAS'){
 
@@ -94,11 +94,18 @@ correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
 
     }
 
-    if(mirrored){
+    if(mirrored_y){
 
       cloud@data$Y = -cloud@data$Y
 
     }
+    
+    if(mirrored_x){
+      
+      cloud@data$X = -cloud@data$X
+      
+    }
+    
 
   }else{
 
@@ -118,10 +125,16 @@ correctCloud = function(cloud, mirrored=F, upside_down=F, shift_z_axis=F){
 
     }
 
-    if(mirrored){
+    if(mirrored_y){
 
       cloud[,3] = -cloud[,3]
 
+    }
+    
+    if(mirrored_x){
+      
+      cloud[,2] = -cloud[,2]
+      
     }
 
   }
