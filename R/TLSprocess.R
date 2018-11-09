@@ -10,6 +10,10 @@ if(!require(rgl)){
   install.packages('rgl')
   require(rgl)
 }
+if(!require(MASS)){
+  install.packages('MASS')
+  require(MASS)
+}
 
 anguloX = function(XYZplane, eixo='z', stat_mat=cov){
   e = eigen(stat_mat(XYZplane))
@@ -337,28 +341,30 @@ mergeClones = function(diams, cloneRange=1){
 
   return(diams)
 }
+
 modelDiameters = function(diams){
   modDiams = data.frame()
   for(i in diams$tree %>% unique){
     temp = diams[ diams$tree == i ,]
-
+    
     if(nrow(temp) < 3) next
-
-    hs   = (temp$z_max + temp$z_min)/2
+    
+    hs   = (temp$h_max + temp$h_min)/2
     hMax = max(hs)
-    mod = lm(temp$rad_ransac ~ hs)
-
+    mod = lm(temp$rad ~ hs)
+    
     if(mod$coefficients[2] > 0) next
-
+    
     predHs = seq(.1, hMax, .1)
     newDiams = predict(mod, list(hs = predHs))
-    x = temp$x_ransac %>% mean
-    y = temp$y_ransac %>% mean
+    x = temp$x %>% mean
+    y = temp$y %>% mean
     df = data.frame(tree = i,x, y, h = predHs, d = newDiams*200, ang=mod$coefficients[2])
     modDiams %<>% rbind(df)
   }
   return(modDiams)
 }
+
 interpolateDiameters = function(diams, radMax = .25){
   splDiams = data.frame()
   for(i in diams$tree %>% unique){
@@ -675,21 +681,21 @@ redirectCloud = function(cloud, slam){
 
 importResults = function(lasName, maxRad=.15, minPts=20){
   repName = sub('\\.laz$', '_results.txt',lasName)
-
+  
   las = readLAS(lasName)
   rep = read.table(repName, header = T)
-
-  hMin = min(rep$h_min)
-  rep$h_min = rep$h_min - hMin
-  rep$h_max = rep$h_max - hMin
-
-  las@data$Z = las@data$Z - hMin
-
+  
+  # hMin = min(rep$h_min)
+  # rep$h_min = rep$h_min - hMin
+  # rep$h_max = rep$h_max - hMin
+  
+  # las@data$Z = las@data$Z - hMin
+  
   las = LAS(las@data)
-  rep = rep[ rep$rad < maxRad & rep$h_max > 0 & rep$n > minPts ,]
-
+  rep = rep[ rep$rad < maxRad & rep$rad > 0 & rep$n > minPts ,]
+  
   return(list(las=las, report=rep))
-
+  
 }
 
 getHeigths = function(las, treeRadius=1.5, graph=T){
@@ -819,3 +825,15 @@ clipPoints = function(las, x=NULL, y=NULL, rad=.15, keepInner=T, ...){
   return(list(las = las, pars=pars))
 }
 
+rlmFilter = function(rep, weightLim = .7){
+  
+  rm = MASS::rlm(rep$rad ~ rep$h_min, psi=MASS::psi.bisquare)
+  m  = lm(rep$rad ~ rep$h_min)
+  plot(rep$rad ~ rep$h_min, pch=20, col=ifelse(rm$w < weightLim, 'red', 'black'))
+  abline(rm, col='red', lwd=2)
+  abline(m, col='blue', lwd=2)
+  
+  rep = rep[ rm$w > weightLim ,]
+  return(rep)
+  
+}
