@@ -106,6 +106,7 @@ correctCloud = function(cloud, mirrored_x=F, mirrored_y=F, upside_down=F, shift_
       
     }
     
+    cloud = LAS(cloud@data)
 
   }else{
 
