@@ -646,13 +646,21 @@ checkTree3d = function(cloud, report, treeId, newPlot=F, trunkOnly=F, timeCols =
 
   axes3d(col='white')
 }
+
 treePlot3d = function(cloud, report){
+  
   rgl.open(); bg3d('black') ; clear3d()
   spheres3d(report$x, report$y, (report$h_min + report$h_max)/2, report$rad, color='orange')
   rgl.points(cloud@data[cloud@data$Classification == 30,], color = "darkred", size=1)
   rgl.points(cloud@data[cloud@data$Classification == 20,], color = "darkgreen", size=.5)
   rgl.points(cloud@data[cloud@data$Classification == 2,], color = "brown", size=.5)
   rgl.points(cloud@data[cloud@data$Classification == 1,], color = "darkgray", size=.5)
+  
+  x = tapply(report$x ,report$tree, mean)
+  y = tapply(report$y ,report$tree, mean)
+  
+  text3d(x, y, -.5, names(x), col='white')
+  
 }
 redirectCloud = function(cloud, slam){
   startLim = floor(nrow(slam) / 3)
@@ -835,5 +843,35 @@ rlmFilter = function(rep, weightLim = .7){
   
   rep = rep[ rm$w > weightLim ,]
   return(rep)
+  
+}
+
+pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
+  
+  treePlot3d(las, report)
+  idx = identify3d(las@data[,1:3])
+  
+  if(length(idx) != 1){
+    stop('pick ONE point')
+  }
+  
+  pt = las@data[idx,1:2] %>% as.double
+  tree = lasclipCircle(las, pt[1], pt[2], radius)
+  
+  cat('getting trunk points\n')
+  stem = TreeLS::pref_HT(tree@data[,1:3], min.den = .1)
+  
+  cat('measuring trunk segments\n')
+  stem = TreeLS::fit_RANSAC_circle(stem, len)
+  
+  id = max(las@data$UserData)+1
+  
+  df = stem$circles %>% as.data.frame
+  df = df[ df$r > 0 & df$r < maxRad ,]
+  df = df %$% data.frame(tree=id, x=x, y=y, rad=r, error=ssq, h_min=z1, h_max=z2, n=0)
+  
+  spheres3d(df$x, df$y, (df$h_min+df$h_max)/2, df$rad, col='blue')
+  
+  return(df)
   
 }
