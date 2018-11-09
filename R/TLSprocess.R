@@ -682,7 +682,7 @@ redirectCloud = function(cloud, slam){
 importResults = function(lasName, maxRad=.15, minPts=20){
   repName = sub('\\.laz$', '_results.txt',lasName)
   
-  las = readLAS(lasName)
+  las = readLAS(lasName) %>% lasfilter(Z > 0)
   rep = read.table(repName, header = T)
   
   # hMin = min(rep$h_min)
@@ -692,7 +692,7 @@ importResults = function(lasName, maxRad=.15, minPts=20){
   # las@data$Z = las@data$Z - hMin
   
   las = LAS(las@data)
-  rep = rep[ rep$rad < maxRad & rep$rad > 0 & rep$n > minPts ,]
+  rep = rep[ rep$rad < maxRad & rep$rad > 0 & rep$n > minPts & rep$h_max > 0 ,]
   
   return(list(las=las, report=rep))
   
