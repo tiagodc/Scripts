@@ -954,3 +954,104 @@ sumMinDists2d = function(pars, ca, cb){
   
   return(sum(minDists))
 }
+
+alignResults = function(data1, data2, id1=NULL, id2=NULL, startAngle=0){
+  
+  init = c(0,0,startAngle)
+  
+  xa = tapply(data1$report$x, data1$report$tree, mean)
+  ya = tapply(data1$report$y, data1$report$tree, mean)
+  ta = names(xa) %>% as.double
+  
+  xb = tapply(data2$report$x, data2$report$tree, mean)
+  yb = tapply(data2$report$y, data2$report$tree, mean)
+  tb = names(xb) %>% as.double
+  
+  ca = cbind(xa,ya)
+  cb = cbind(xb,yb)
+  
+  if(is.null(id1) || is.null(id2)){
+    
+    cat("starting NON supervised alignment\n")
+    
+    opt = optim(init, sumMinDists2d, ca=ca, cb=cb)
+    
+  }else{
+    
+    if(length(id1) != length(id2)){
+      stop("id vectors must be the same length")
+    }else if(length(id1) <= 1){
+      stop("id vectors must be longer than 1")
+    }
+    
+    cat("starting supervised alignment\n")
+    
+    xy1 = ca[id1 %>% as.character,]
+    xy2 = cb[id2 %>% as.character,]
+    
+    rotSSQ = function(xyt){
+      
+      temp = xy2 %>% cbind(1) %>% t
+      temp = tfMatrix2d(xyt[1],xyt[2],xyt[3]) %*% temp
+      temp = temp[-3,] %>% t
+      
+      dst = sqrt( (xy1[,1] - temp[,1])^2 + (xy1[,2] - temp[,2])^2 ) %>% sum
+      
+      return(dst)
+      
+    }
+    opt = optim(init, rotSSQ)
+    
+  }
+  
+  tf = opt %$% tfMatrix2d(par[1], par[2], par[3])
+  
+  temp = cb
+  temp %<>% cbind(1)
+  
+  temp = tf %*% t(temp) 
+  temp %<>% t %>% as.data.frame
+  temp = temp[,-3]
+  
+  plot(ca)
+  points(temp[,1], temp[,2], col='red')
+  
+  pairs = apply(cbind(ca, ta), 1, function(p){
+    dst = sqrt( (temp[,1] - p[1])^2 + (temp[,2] - p[2])^2 )
+    tid = tb[which.min(dst)]
+    out = c(p[3],tid,min(dst))
+    return(out)
+  }) %>% t %>% as.data.frame
+  
+  colnames(pairs) = c('tree_id1', 'tree_id2', 'distance')
+  
+  multiIds = table(pairs$tree_id2)
+  
+  if(any(multiIds > 1)){
+    tids = multiIds[multiIds > 1] %>% names %>% as.double
+    temp = pairs[ pairs$tree_id2 %in% tids ,]
+    pairs = pairs[ !(pairs$tree_id2 %in% tids) ,]
+    
+    for(i in tids){
+      ttemp = temp[ temp$tree_id2 == i ,]
+      pairs %<>%  rbind(ttemp[ttemp$distance %>% which.min,])
+    }
+  }
+  
+  temp = data2$las@data[,1:3]
+  temp[,3] = 1
+  temp = tf %*% t(temp) 
+  temp %<>% t %>% as.data.frame
+  temp[,3] = data2$las@data[,3]
+  
+  rgl.open() ; bg3d('black')
+  rgl.points(data1$las@data[,1:3], col='white', size=.5)
+  rgl.points(temp, col='red', size=.5)
+  axes3d(col='white')
+  
+  return(list(
+    peers = pairs,
+    matrix = tf
+  ))
+  
+}
