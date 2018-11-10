@@ -875,3 +875,82 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
   return(df)
   
 }
+
+tfMatrix = function (ax, az, ax2, x, y, z){
+  
+  Rx = matrix(c(1, 0, 0, 0, cos(ax), sin(ax), 0, -sin(ax),
+                cos(ax)), ncol = 3, byrow = T)
+  
+  Rz = matrix(c(cos(az), 0, -sin(az), 0, 1, 0, sin(az), 0,
+                cos(az)), ncol = 3, byrow = T)
+  
+  Rx2 = matrix(c(cos(ax2), sin(ax2), 0, -sin(ax2), cos(ax2),
+                 0, 0, 0, 1), ncol = 3, byrow = T)
+  
+  ro.mat = Rx2 %*% Rz %*% Rx
+  
+  ro.mat %<>% rbind(0) %>% cbind(c(x,y,z,1))
+  
+  return(ro.mat)
+}
+
+sumMinDists = function(pars, ca, cb){
+  
+  roMat = tfMatrix(pars[1], pars[2], pars[3], pars[4], pars[5], pars[6])
+  cb %<>% cbind(1) %>% t
+  
+  cb = roMat %*% cb
+  cb = cb[-4,] %>% t %>% as.data.frame
+  
+  names(ca) = names(cb) = c('X', 'Y', 'Z')
+  
+  d1 = nrow(ca)
+  d2 = nrow(cb)
+  
+  distMat = dist(rbind(ca, cb), 
+                 method = 'euclidean', 
+                 diag = T, upper = T)
+  
+  distMat = as.matrix(distMat)
+  distMat = distMat[1:d1, (d1+1):(d1+d2)]
+  minDists = apply(distMat, 1, min)
+  
+  return(sum(minDists))
+}
+
+tfMatrix2d = function(x,y,theta){
+  
+  matrix(c(
+    cos(theta), -sin(theta), x,
+    sin(theta),  cos(theta), y,
+    0,0,1
+  ), byrow=T, ncol=3)
+  
+}
+
+sumMinDists2d = function(pars, ca, cb){
+  
+  # ca = ca[,-3]
+  # cb = cb[,-3]
+  
+  roMat = tfMatrix2d(pars[1], pars[2], pars[3])
+  cb %<>% cbind(1) %>% t
+  
+  cb = roMat %*% cb
+  cb = cb[-3,] %>% t %>% as.data.frame
+  
+  colnames(ca) = colnames(cb) = c('X', 'Y')
+  
+  d1 = nrow(ca)
+  d2 = nrow(cb)
+  
+  distMat = dist(rbind(ca, cb), 
+                 method = 'euclidean', 
+                 diag = T, upper = T)
+  
+  distMat = as.matrix(distMat)
+  distMat = distMat[1:d1, (d1+1):(d1+d2)]
+  minDists = apply(distMat, 1, min)
+  
+  return(sum(minDists))
+}
