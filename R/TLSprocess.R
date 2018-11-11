@@ -805,19 +805,35 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
   }
 }
 
-clipPoints = function(las, x=NULL, y=NULL, rad=.15, keepInner=T, ...){
+clipPoints = function(las, rad=.15, keepInner=T, ...){
 
-  if(is.null(x)){
-    dst = rep(T, nrow(las@data))
-  }  else{
-    dst = sqrt( (las@data$X-x)^2 + (las@data$Y-y)^2 ) < rad
-    if(!keepInner) dst = !dst
+  x = NULL
+  y = NULL
+  
+  rgs = apply(las@data[,1:2], 2, range)
+  grdX = seq( rgs[1,1], rgs[2,1], by=.01 )
+  grdY = seq( rgs[1,2], rgs[2,2], by=.01 )
+  grd = expand.grid(grdX, grdY)
+  
+  plot(las@data[,1:2], asp=1, pch=20, cex=.5, ...)
+  xy = grd[identify(grd),]
+  
+  if(nrow(xy) > 0){
+    x = xy[,1] %>% as.double
+    y = xy[,2] %>% as.double
   }
-
+  
+  dst = rep(T, nrow(las@data))
+  for(i in 1:nrow(xy)){
+    dsti = sqrt( (las@data$X-x[i])^2 + (las@data$Y-y[i])^2 ) < rad
+    # if(!keepInner && i == 1) dst = !dsti
+    dst = if(keepInner) dst & dsti else dst & !dsti
+  }
+  
   las@data = las@data[dst,]
   las = LAS(las@data)
 
-  plot(las@data[,1:2], asp=1, ...)
+  plot(las@data[,1:2], asp=1, pch=20, cex=.5, ...)
 
   pars = TreeLS::RANSAC.circle(las@data[,1:3])
 
