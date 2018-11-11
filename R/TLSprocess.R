@@ -512,7 +512,9 @@ writePlotLayers = function(cloud, report, prefix='temp', reduce=F, treeId=NULL, 
     otherPts = lasfilter(layer, Classification != 30)
 
     diams = report[report$h_max == hvals[i],]
-
+    
+    if(nrow(diams) == 0) next
+    
     colRamp = colorRampPalette(timeCols)
     unTimes = cloud@data$gpstime %>% unique %>% sort %>% as.character
     unCols = colRamp(unTimes %>% length)
@@ -565,12 +567,12 @@ writePlotLayers = function(cloud, report, prefix='temp', reduce=F, treeId=NULL, 
              lty=c(rep(NA, 6),3,1), lwd=5, cex=5, bty='n',
              col = c(timeCols, treeCol, 'black', labelCol, circleCol, 'red', 'lightgray'),
              # col = c('green', 'orange', 'brown', 'black', 'black', 'blue', 'red', 'lightgray'),
-             legend = c('pontos de tronco - in�cio',
+             legend = c('pontos de tronco - inicio',
                         'pontos de tronco - fim',
-                        'pontos da �rvore',
+                        'pontos da arvore',
                         'outros',
-                        'ID da �rvore / di�metro (cm)',
-                        'se��o de tronco',
+                        'ID da arvore / diametro (cm)',
+                        'secao de tronco',
                         'marcadores de 10 cm',
                         'marcadores de 5 cm'))
       box()
@@ -761,6 +763,8 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
     fileName = paste0(pref, '_', i, '.png')
 
     if(export) png(fileName, 15, 15, units = 'cm', res = 300)
+    
+    if(length(cld@data$X[ cld@data$Classification != 30 ]) == 0) next
 
     plot(cld@data[ cld@data$Classification != 30 ,1:2], pch=20, cex=.75, asp=1,
          main=paste0('id ', i, '\n',hRange[1], ' - ', hRange[2], ' m'))
