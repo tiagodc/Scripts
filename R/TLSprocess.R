@@ -864,7 +864,7 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
   cat('measuring trunk segments\n')
   stem = TreeLS::fit_RANSAC_circle(stem, len)
   
-  id = max(las@data$UserData)+1
+  id = max(report$tree)+1
   
   df = stem$circles %>% as.data.frame
   df = df[ df$r > 0 & df$r < maxRad ,]
