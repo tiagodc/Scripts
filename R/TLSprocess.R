@@ -811,8 +811,8 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
 
 clipPoints = function(las, rad=.15, click=F, keepInner=T, ...){
 
-  x = mean(las@data$X)
-  y = mean(las@data$Y)
+  x = las@data$X %>% range %>% mean
+  y = las@data$Y %>% range %>% mean
   
   rgs = apply(las@data[,1:2], 2, range)
   grdX = seq( rgs[1,1], rgs[2,1], by=.01 )
