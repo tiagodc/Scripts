@@ -809,10 +809,10 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
   }
 }
 
-clipPoints = function(las, rad=.15, keepInner=T, ...){
+clipPoints = function(las, rad=.15, click=F, keepInner=T, ...){
 
-  x = NULL
-  y = NULL
+  x = mean(las@data$X)
+  y = mean(las@data$Y)
   
   rgs = apply(las@data[,1:2], 2, range)
   grdX = seq( rgs[1,1], rgs[2,1], by=.01 )
@@ -820,7 +820,7 @@ clipPoints = function(las, rad=.15, keepInner=T, ...){
   grd = expand.grid(grdX, grdY)
   
   plot(las@data[,1:2], asp=1, pch=20, cex=.5, ...)
-  xy = grd[identify(grd),]
+  xy = if(click) grd[identify(grd),] else data.frame(x=x,y=y)
   
   if(nrow(xy) > 0){
     x = xy[,1] %>% as.double
@@ -837,14 +837,14 @@ clipPoints = function(las, rad=.15, keepInner=T, ...){
   las@data = las@data[dst,]
   las = LAS(las@data)
 
-  plot(las@data[,1:2], asp=1, pch=20, cex=.5, ...)
-
   pars = TreeLS::RANSAC.circle(las@data[,1:3])
 
   angs = seq(0,pi*2, length.out = 12)
   cx = cos(angs) * pars[3] + pars[1]
   cy = sin(angs) * pars[3] + pars[2]
 
+  if(click) plot(las@data[,1:2], asp=1, pch=20, cex=.5, ...)
+  title(main=paste('d =',round(2*pars[3],4), 'm'))
   points(pars[1], pars[2], pch=3, cex=2, col='red')
   lines(cx, cy, lwd=2, col='red')
 
