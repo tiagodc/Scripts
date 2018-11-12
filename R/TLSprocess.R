@@ -837,7 +837,7 @@ clipPoints = function(las, rad=.15, click=F, keepInner=T, ...){
   las@data = las@data[dst,]
   las = LAS(las@data)
 
-  pars = TreeLS::RANSAC.circle(las@data[,1:3])
+  pars = ransacCircleAdjust(las@data[,1:3])
 
   angs = seq(0,pi*2, length.out = 12)
   cx = cos(angs) * pars[3] + pars[1]
@@ -1082,4 +1082,64 @@ alignResults = function(data1, data2, id1=NULL, id2=NULL, startAngle=0){
     matrix = tf
   ))
   
+}
+
+ransacCircleAdjust = function (stem.sec, n = 15, p = 0.8, P = 0.99) 
+{
+  if (nrow(stem.sec) < n) return(NULL)
+  
+  slc = stem.sec %>% as.data.frame
+  N = log(1 - P)/log(1 - p^n)
+  data = matrix(ncol = 4, nrow = 0)
+  for (j in 1:(5 * N)) {
+    a = sample(1:nrow(slc), size = n)
+    b = tryCatch(TreeLS::circlefit(slc[a, 1], slc[a, 2]), 
+                 error = function(con) return("next"),
+                 warning = function(con) return("next")
+    )
+    if (b[1] == "next") next
+    data = rbind(data, b)
+  }
+  
+  if (nrow(data) == 0) return(NULL)
+  
+  c = which.min(data[, 4])
+  dt = if (length(c) > 1) data[sample(c, size = 1), ] else data[c, ]
+  err = sqrt( (slc[,1]- (dt[3]+dt[1]))^2 + (slc[,2]- (dt[3]+dt[2]))^2 ) %>% mean
+  dt[4] = err
+  return(dt)
+}
+
+diameterFromGpsTime =  function(cld, nClasses=10){
+  classes = cld@data$gpstime %>% cut(nClasses) %>% as.character
+  ws = classes %>% table
+  ws = ws / max(ws)
+  
+  plot(cld@data[,1:2], pch=20, asp=T)
+  
+  i = names(ws)[3]
+  pars = sapply(names(ws), function(i){
+    temp = cld@data[ classes == i ,1:3] 
+    tPar = ransacCircleAdjust(temp, n=10)
+    if(is.null(tPar)) return(NULL)
+    return(c(tPar, nrow(temp)))
+  }) %>% do.call(what = rbind) %>% as.data.frame
+  
+  names(pars) = c('x', 'y', 'rad', 'err', 'n')
+  
+  ang = seq(0, 2*pi, length.out = 180)
+  apply(pars, 1, function(i){
+    cx = i[1] + cos(ang)*i[3]
+    cy = i[2] + sin(ang)*i[3]
+    lines(cx, cy, col='red', lty=2)
+  })
+  
+  pt = which.min(pars$err)
+  cx = pars$x[pt] + cos(ang)*pars$rad[pt]
+  cy = pars$y[pt] + sin(ang)*pars$rad[pt]
+  points(pars$x[pt], pars$y[pt], pch=3, col='blue', cex=2)
+  lines(cx, cy, col='blue', lty=1, lwd=2)
+  title(main=paste('d = ', round(pars$rad[pt]*2, 4), 'm'))
+  
+  return(pars[pt,])
 }
