@@ -210,11 +210,11 @@ solid = function (height, zs, maxRad, b = 2){
 }
 angleFilter = function(diams, maxAng=25){
   # maxAng = 30
-  diams = diams[ order(diams$tree, diams$z_min) ,]
+  diams = diams[ order(diams$tree, diams$h_min) ,]
   diams$angles = NA
   for(i in unique(diams$tree)){
     temp = diams[diams$tree == i,]
-    temp %<>% with(data.frame(x=x_ransac, y=y_ransac, z=(z_min + z_max)/2))
+    temp %<>% with(data.frame(x=x, y=y, z=(h_min + h_max)/2))
     zAngs = c()
     for(j in 2:nrow(temp)){
       vec = (temp[j,] - temp[j-1,]) %>% as.double
@@ -234,8 +234,8 @@ solidFilter = function(diams, maxRad=.25, tHeight=25, shapeExp=2){
   keepDiams = data.frame()
   for(i in unique(diams$tree)){
     temp = diams[diams$tree == i,]
-    coneRads = solid(tHeight, (temp$z_min + temp$z_max)/2, maxRad, shapeExp)
-    keep = (coneRads - temp$rad_ransac) > 0
+    coneRads = solid(tHeight, (temp$h_min + temp$h_max)/2, maxRad, shapeExp)
+    keep = (coneRads - temp$rad) > 0
     # diams = diams[ diams$tree != i ,]
     if(keep %>% which %>% length > 2){
       keepDiams %<>% rbind( temp[keep,] )
@@ -244,12 +244,16 @@ solidFilter = function(diams, maxRad=.25, tHeight=25, shapeExp=2){
   return(keepDiams)
 }
 quantileFilter = function(diams, inf=.01, sup=.95){
-  qts = quantile(diams$rad_ransac, c(inf,sup))
-  diams = diams[ diams$rad_ransac > qts[1] & diams$rad_ransac < qts[2] ,]
+  qts = quantile(diams$rad, c(inf,sup))
+  diams = diams[ diams$rad > qts[1] & diams$rad < qts[2] ,]
   return(diams)
 }
-filterSegments = function(diams, stems, maxRad=.25, px=.025, dMin=1, hMin=3, nLim=1){
-
+filterSegments = function(data, maxRad=.25, px=.025, dMin=1, hMin=3, nLim=1){
+  
+  diams = data$report
+  diams = diams[!is.na(diams$tree),]
+  stems = lasfilter(data$las, Classification == 30)
+  
   diams %<>% solidFilter(maxRad)
 
   # remove segments not encopassing stem points
@@ -257,10 +261,10 @@ filterSegments = function(diams, stems, maxRad=.25, px=.025, dMin=1, hMin=3, nLi
   dsts = c()
   for(i in 1:nrow(diams)){
     # print(i)
-    x = diams[i,'x_ransac',drop=T]
-    y = diams[i,'y_ransac',drop=T]
-    z = (diams$z_min[i] + diams$z_max[i])/2
-    rad = diams$rad_ransac[i] + px
+    x = diams[i,'x',drop=T]
+    y = diams[i,'y',drop=T]
+    z = (diams$h_min[i] + diams$h_max[i])/2
+    rad = diams$rad[i] + px
     dists = sqrt( (x-stems@data$X)^2 + (y-stems@data$Y)^2 + (z-stems@data$Z)^2 )
     npts = which(dists <= rad) %>% length
     dsts %<>% c(npts)
@@ -269,7 +273,7 @@ filterSegments = function(diams, stems, maxRad=.25, px=.025, dMin=1, hMin=3, nLi
 
   # remove isolated segments
   # dMin = 1
-  coords = with(diams, data.frame(x_ransac, y_ransac, (z_max + z_min)/2))
+  coords = with(diams, data.frame(x, y, (h_max + h_min)/2))
   distMat = dist(coords) %>% as.matrix
   diag(distMat) = NA
   minVals = apply(distMat, 2, min, na.rm=T )
@@ -278,14 +282,14 @@ filterSegments = function(diams, stems, maxRad=.25, px=.025, dMin=1, hMin=3, nLi
 
   # remove short objects
   # hMin = 3
-  hIntervals = by(diams$z_max, diams$tree, function(x) diff(range(x)) )
+  hIntervals = by(diams$h_max, diams$tree, function(x) diff(range(x)) )
   stumps = which(hIntervals < hMin)
   lowTrees = names(hIntervals)[stumps] %>% as.double
   diams = diams[!(diams$tree %in% lowTrees) ,]
 
   # remove baseless objects
   # nLim = 1
-  nLow = by(diams$z_max, diams$tree, function(x) length(which(x < hMin)) )
+  nLow = by(diams$h_max, diams$tree, function(x) length(which(x < hMin)) )
   fakeTrees = which(nLow <= nLim)
   fakeTrees = names(nLow)[fakeTrees] %>% as.double
   diams = diams[!(diams$tree %in% fakeTrees),]
