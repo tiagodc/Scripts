@@ -747,7 +747,7 @@ getDbhs = function(rep, hRange=c(1,1.6), graph=T){
 }
 
 plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gridRes=.025, export=T, pref='temp'){
-  ids = las@data$UserData %>% unique
+  ids = rep$tree %>% unique
   ids = ids[ids != 0]
   colRamp = colorRampPalette(timeCols)
   angs = seq(0,pi*2, length.out = 12)
@@ -762,9 +762,9 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
 
     fileName = paste0(pref, '_', i, '.png')
 
-    if(export) png(fileName, 15, 15, units = 'cm', res = 300)
-    
     if(length(cld@data$X[ cld@data$Classification != 30 ]) == 0) next
+    
+    if(export) png(fileName, 15, 15, units = 'cm', res = 300)
 
     plot(cld@data[ cld@data$Classification != 30 ,1:2], pch=20, cex=.75, asp=1,
          main=paste0('id ', i, '\n',hRange[1], ' - ', hRange[2], ' m'))
