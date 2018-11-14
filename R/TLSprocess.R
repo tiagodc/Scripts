@@ -762,7 +762,12 @@ plotDiams = function(las, rep, hRange=c(1,1.6), timeCols=c('green','orange'), gr
     # i=ids[1]
     cld = lasfilter(las, UserData == i & Z >= hRange[1] & Z <= hRange[2])
     seg = rep[ rep$h_min >= hRange[1] & rep$h_max <= hRange[2] & rep$tree == i ,]
-
+    
+    x = cld@data$X %>% mean
+    y = cld@data$Y %>% mean
+    
+    cld = lasclipCircle(las, x, y, .5) %>% lasfilter(Z >= hRange[1] & Z <= hRange[2])
+    
     fileName = paste0(pref, '_', i, '.png')
 
     if(length(cld@data$X[ cld@data$Classification != 30 ]) == 0) next
@@ -1175,8 +1180,9 @@ getForkedTrunk = function(las, report, ids, clip=1, expand=.1, newPlot=F){
     bole = bole[ bole$r < max(tree$rad) & bole$r > 0 ,]
     
     bole %$% spheres3d(x,y,z1,r,col='blue')
-    
     id = id+1
+    bole %$% text3d(mean(x), mean(y), -.5, id)
+    
     df %<>% rbind(bole %$% data.frame(tree=id, x=x, y=y, rad=r, error=ssq, 
                                       h_min=z1, h_max=z2, n=NA))
   }
