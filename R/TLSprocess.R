@@ -226,7 +226,6 @@ angleFilter = function(diams, maxAng=25){
     zAngs = (aAngs + dAngs)/2
     diams[diams$tree == i,'angles'] = zAngs
   }
-
   diams = diams[ diams$angles < maxAng ,]
   return(diams)
 }
@@ -248,11 +247,11 @@ quantileFilter = function(diams, inf=.01, sup=.95){
   diams = diams[ diams$rad > qts[1] & diams$rad < qts[2] ,]
   return(diams)
 }
-filterSegments = function(data, maxRad=.25, px=.025, dMin=1, hMin=3, nLim=1){
+filterSegments = function(las, report, maxRad=.25, px=.025, dMin=1, hMin=3, nLim=1){
   
-  diams = data$report
+  diams = report
   diams = diams[!is.na(diams$tree),]
-  stems = lasfilter(data$las, Classification == 30)
+  stems = lasfilter(las, Classification == 30)
   
   diams %<>% solidFilter(maxRad)
 
@@ -880,6 +879,7 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
   # }
   
   output = data.frame()
+  id = max(las@data$UserData)
   
   for(idx in idxs){
   
@@ -892,8 +892,7 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
     cat('measuring trunk segments\n')
     stem = TreeLS::fit_RANSAC_circle(stem, len)
     
-    id = max(report$tree)+1
-    
+    id = id+1
     df = stem$circles %>% as.data.frame
     df = df[ df$r > 0 & df$r < maxRad ,]
     df = df %$% data.frame(tree=id, x=x, y=y, rad=r, error=ssq, h_min=z1, h_max=z2, n=0)
@@ -1146,4 +1145,42 @@ diameterFromGpsTime =  function(cld, nClasses=10){
   title(main=paste('d = ', round(pars$rad[pt]*2, 4), 'm'))
   
   return(pars[pt,])
+}
+
+getForkedTrunk = function(las, report, ids, clip=1, expand=.1, newPlot=F){
+  
+  df = data.frame()
+  id = max(las@data$UserData)
+  for(treeId in ids){
+    
+    paste('splitting tree', treeId, '\n') %>% cat 
+    
+    tree = report[ report$tree == treeId ,]
+    xy = apply(tree[,2:3],2,mean) %>% as.double
+    
+    cld = lasclipCircle(las, xy[1], xy[2], clip)
+    xy = cld@data[,1:2]
+    
+    keep = apply(tree, 1, function(i){
+      dst = sqrt( (xy[,1] - i['x'])^2 + (xy[,2] - i['y'])^2 )
+      dst > i['rad'] + expand
+    }) %>% apply(1, all)
+    
+    if(newPlot){ plot(cld) ; axes3d(col='white') }
+    
+    cld = LAS(cld@data[keep,])
+    
+    bole = TreeLS::pref_HT(cld@data[,1:3]) %>% TreeLS::fit_RANSAC_circle(.25)
+    bole = bole$circles %>% as.data.frame
+    bole = bole[ bole$r < max(tree$rad) & bole$r > 0 ,]
+    
+    bole %$% spheres3d(x,y,z1,r,col='blue')
+    
+    id = id+1
+    df %<>% rbind(bole %$% data.frame(tree=id, x=x, y=y, rad=r, error=ssq, 
+                                      h_min=z1, h_max=z2, n=NA))
+  }
+  
+  return(df)
+  
 }
