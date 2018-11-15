@@ -884,7 +884,8 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
   # }
   
   output = data.frame()
-  id = c(max(las@data$UserData), max(report$tree)) %>% max
+  
+  id = c(max(las@data$UserData), max(report$tree[!is.na(report$tree)])) %>% max
   
   for(idx in idxs){
   
