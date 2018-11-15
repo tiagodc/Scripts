@@ -909,6 +909,9 @@ pickTree = function(las, report, radius=.75, len=.25, maxRad=.15){
     output %<>% rbind(df)
 
   }
+  
+  output = output[ !is.na(output$tree) ,]
+  
   return(output)
   
 }
