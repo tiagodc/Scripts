@@ -1,13 +1,17 @@
 #!/usr/bin/python
 print('# loading libraries')
 
-import os, rosbag, re, math, numpy, shutil, tf, sys
+### import ROS packages necessary to deal with the bag files and other common packages
+### ROS must be already installed in the system (ideally ROS kinetic, under Ubuntu 16.04)
+import os, rosbag, re, math, numpy, shutil, tf, sys, time
 from sensor_msgs.msg import Imu
 import sensor_msgs.point_cloud2 as pc2
 
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
+### function for converting the data from our system's IMU (sbg ellipse) to a common ROS sensor message
+### this is necessary to provide a readable input for the LOAM algorithm
 def convertImu(sbgImu, sbgQuat):
     imuMsg = Imu()
 
@@ -28,6 +32,9 @@ def convertImu(sbgImu, sbgQuat):
 
     return imuMsg
 
+
+### function for (optional) manipulation of the input point cloud frames (from the VLP16)
+### in which the axes can be shifted and data range filtered before processing with SLAM 
 def filterPointCloud2(msg, radius = None, swap = 'xyz'):
 
     swap = swap.lower()
@@ -66,45 +73,60 @@ def filterPointCloud2(msg, radius = None, swap = 'xyz'):
 #########################################
 print('# defining global variables')
 
+### define path to directory with all bag files to be processed
+### the bag files must contain the /velodyne_points topic and data from the IMU (optional)
+### such bag files can also be generated from a raw velodyne PCAP through the velodyne's ROS drivers
+os.chdir(r'/home/tiago/Desktop/trsf0/')
 
-# bag files path
-os.chdir(r'/media/tiago/OS/Work/gerdau/dia2')
-
-# variables used to convert imu_data and parse pointCloud2
+### variables used to convert imu_data and parse pointCloud2
+### list of ROS topics with raw data from the sensors
 tops = [r'/velodyne_points', r'/ekf_quat', r'/imu_data']
+
+### distance limit to consider for the LiDAR data
 radius = None
+
+### axes' reordering to apply on the LiDAR's point cloud frames
 swap = 'xyz'
 
-# variables definig SLAM parameters
+### variables definig SLAM parameters
+### ### use hector slam method?
 hectorSlam = False
+### ### use IMU data?
 useImu = True
+### ### time ratio to apply when processing the bag file - lower ratios produce better point clouds
 playRatio = 0.25
+### ### topics to be recorded while running the SLAM - results of the corregistration
 recTopics = [r'/imu/data', r'/integrated_to_init', r'/velodyne_cloud_registered']
+### ### path to the workspace where the LOAM package is built
 sourcePath = r'~/catkin_loam'
 
-# variables used for generating the LAZ point cloud
-pcd2laz = '~/pcd2laz/bin/Release/pcd2laz' 
+### variables used for generating the LAZ point cloud
+### ### path to the pcd2laz executable
+pcd2laz = '/home/tiago/pcd2laz/bin/Release/pcd2laz' 
+### ### path to the directory that will be created to host temporary point cloud files (.pcd)
 pcdDir = 'pcd_temp'
 
+### command to kill all ROS processes after the SLAM finishes
 rosKill = r'rosnode kill -a && killall -9 rosmaster'
 
-# list all bag files
+### list all bag files
 bagFiles = []
 for i in os.listdir('.'):
     if re.match(r'.+\.bag$', i) is not None:
         bagFiles.append(i)
 
-
+### process bag files, one by one
 for rBag in bagFiles:
     
-    # rBag = r'20180627_euc1_x_hor.bag'
     print('### processing: ' + rBag)
     
+    ### define laz file name (final output)
     oLaz = re.sub(r'\.bag$', r'.laz', rBag)
 
     #########################################
     print('# getting sensorMsg topics')
 
+    ### read bag file with raw data and convert it to bag of common ROS messages 
     wBag = re.sub(r'\.bag$', '_sensorMsg.bag', rBag)
     bag = rosbag.Bag(rBag)
 
@@ -129,13 +151,16 @@ for rBag in bagFiles:
     #########################################
     print('# performing SLAM')
 
+    ### define some command line parameters
     launchPref = r'hector_' if hectorSlam else ''
     oBag = re.sub(r'(\.bag$)', r'_' + launchPref + r'slam.bag', wBag)
 
+    ### get input bag file's duration
     bag = rosbag.Bag(wBag)
     bagTime = math.ceil(5 + (bag.get_end_time() - bag.get_start_time()) / playRatio)
     bag.close()
 
+    ### call parallel ROS processes for running the SLAM 
     cmdTimeout = r'timeout ' + str(int(bagTime)) + r' '
     cmdSleep = r'sleep 2 && '
     cmdStart = r'xterm -e "source ' + sourcePath + r'/devel/setup.bash && '
@@ -143,6 +168,8 @@ for rBag in bagFiles:
 
     roslaunch = cmdTimeout + cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
     os.system(roslaunch)
+
+    time.sleep(3)
 
     bagRecord = cmdSleep + cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     os.system(bagRecord)
@@ -156,11 +183,13 @@ for rBag in bagFiles:
     # oBag = rBag
     print('# writing LAZ point cloud')
 
+    ### redefine the temporary directory for the pcds
     if os.path.exists(pcdDir): 
         shutil.rmtree(pcdDir)
 
     os.makedirs(pcdDir)
-
+    
+    ### call ROS processes for exporting pcds from a bag file
     os.system('roscore &')
 
     pclCmd = 'cd ' + pcdDir + ' && rosrun pcl_ros pointcloud_to_pcd input:=/velodyne_cloud_registered &'
@@ -172,6 +201,7 @@ for rBag in bagFiles:
     os.system(playCmd)
     os.system(rosKill)
 
+    ### convert all pcd files to a single laz file with time stamps
     lazCmd = pcd2laz + ' -f ' + pcdDir + ' -o ' + oLaz
 
     os.system(lazCmd)
@@ -181,6 +211,7 @@ for rBag in bagFiles:
     #########################################
     print('# writing IMU and SLAM path`s information')
 
+    ### convert the path information (calculated by the SLAM) from a bag file to text files
     bag = rosbag.Bag(oBag)
 
     rad2deg = 180/math.pi
@@ -222,6 +253,7 @@ for rBag in bagFiles:
 
     bag.close()
 
+    ### write the text files
     if len(angs) > 0:
         angs = numpy.array(angs)
         oTxt = re.sub(r'\.bag$', r'_imu.txt', rBag)
@@ -232,4 +264,5 @@ for rBag in bagFiles:
         oTxt = re.sub(r'\.bag$', r'_slam_path.txt', rBag)
         numpy.savetxt(oTxt, slamPath, fmt="%f")
 
+    ### finished process, go to next point cloud
     print('# done')
