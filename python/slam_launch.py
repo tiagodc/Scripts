@@ -76,7 +76,7 @@ print('# defining global variables')
 ### define path to directory with all bag files to be processed
 ### the bag files must contain the /velodyne_points topic and data from the IMU (optional)
 ### such bag files can also be generated from a raw velodyne PCAP through the velodyne's ROS drivers
-os.chdir(r'/home/tiago/Desktop/trsf0/')
+os.chdir(r'/media/tiago/DATA/PRJ_Plantar_10072019/BAGS/')
 
 ### variables used to convert imu_data and parse pointCloud2
 ### list of ROS topics with raw data from the sensors
@@ -117,9 +117,9 @@ for i in os.listdir('.'):
 
 ### process bag files, one by one
 for rBag in bagFiles:
-    
+
     print('### processing: ' + rBag)
-    
+
     ### define laz file name (final output)
     oLaz = re.sub(r'\.bag$', r'.laz', rBag)
 
@@ -157,7 +157,8 @@ for rBag in bagFiles:
 
     ### get input bag file's duration
     bag = rosbag.Bag(wBag)
-    bagTime = math.ceil(5 + (bag.get_end_time() - bag.get_start_time()) / playRatio)
+    loadTime = 10
+    bagTime = math.ceil(loadTime + (bag.get_end_time() - bag.get_start_time()) / playRatio)
     bag.close()
 
     ### call parallel ROS processes for running the SLAM 
@@ -166,17 +167,18 @@ for rBag in bagFiles:
     cmdStart = r'xterm -e "source ' + sourcePath + r'/devel/setup.bash && '
     cmdImu = r'' if useImu else r' --topics /velodyne_points'
 
-    roslaunch = cmdTimeout + cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
+    roslaunch = cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
     os.system(roslaunch)
 
-    time.sleep(3)
+    time.sleep(loadTime)
 
     bagRecord = cmdSleep + cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     os.system(bagRecord)
 
-    bagPlay = cmdSleep + cmdStart + r'rosbag play ' + wBag + r' -r ' + str(playRatio) + r' ' + cmdImu + r'"'
+    bagPlay = cmdSleep + cmdStart + r'rosbag play ' + wBag + r' -r ' + str(playRatio) + r' ' + cmdImu + r'" &'
     os.system(bagPlay)
 
+    time.sleep(bagTime+2)
     os.system(rosKill)
 
     #########################################
@@ -188,17 +190,15 @@ for rBag in bagFiles:
         shutil.rmtree(pcdDir)
 
     os.makedirs(pcdDir)
-    
+
     ### call ROS processes for exporting pcds from a bag file
     os.system('roscore &')
 
-    pclCmd = 'cd ' + pcdDir + ' && rosrun pcl_ros pointcloud_to_pcd input:=/velodyne_cloud_registered &'
+    time.sleep(loadTime)
+
+    pclCmd = 'rosrun pcl_ros bag_to_pcd ' + oBag + ' /velodyne_cloud_registered ' + pcdDir
 
     os.system(pclCmd)
-
-    playCmd = 'rosbag play ' + oBag
-
-    os.system(playCmd)
     os.system(rosKill)
 
     ### convert all pcd files to a single laz file with time stamps
