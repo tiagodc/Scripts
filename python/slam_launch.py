@@ -168,7 +168,7 @@ for rBag in bagFiles:
     roslaunch = cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
     os.system(roslaunch)
 
-    time.sleep(int(loadTime))
+    time.sleep(loadTime)
 
     bagRecord = cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     os.system(bagRecord)
@@ -176,7 +176,7 @@ for rBag in bagFiles:
     bagPlay = cmdStart + r'rosbag play ' + wBag + r' -r ' + str(playRatio) + r' ' + cmdImu + r'" &'
     os.system(bagPlay)
 
-    time.sleep(int(bagTime+2))
+    time.sleep(bagTime+2)
     os.system(rosKill)
 
     #########################################
@@ -217,7 +217,7 @@ for rBag in bagFiles:
     slamPath = []
     for topic, msg, t in bag.read_messages(topics=recTopics):
 
-        time = float(msg.header.stamp.secs) + float(msg.header.stamp.nsecs) / 10**9
+        timeTag = float(msg.header.stamp.secs) + float(msg.header.stamp.nsecs) / 10**9
 
         if topic == recTopics[0]:
             quat = (
@@ -230,7 +230,7 @@ for rBag in bagFiles:
             euler = tf.transformations.euler_from_quaternion(quat)
 
             # time, roll, pitch, yaw
-            info = [time, euler[0] * rad2deg, euler[1] * rad2deg, euler[2] * rad2deg]
+            info = [timeTag, euler[0] * rad2deg, euler[1] * rad2deg, euler[2] * rad2deg]
             angs.append(info)
 
         if topic == recTopics[1]:
@@ -246,7 +246,7 @@ for rBag in bagFiles:
             euler = tf.transformations.euler_from_quaternion(quat)
             
             # time, x, y, z, roll, pitch, yaw
-            info = [time, pose.position.x, pose.position.y, pose.position.z, euler[0] * rad2deg, euler[1] * rad2deg, euler[2] * rad2deg]
+            info = [timeTag, pose.position.x, pose.position.y, pose.position.z, euler[0] * rad2deg, euler[1] * rad2deg, euler[2] * rad2deg]
             slamPath.append(info)
 
     bag.close()
