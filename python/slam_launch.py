@@ -162,23 +162,21 @@ for rBag in bagFiles:
     bag.close()
 
     ### call parallel ROS processes for running the SLAM 
-    cmdTimeout = r'timeout ' + str(int(bagTime)) + r' '
-    cmdSleep = r'sleep 2 && '
     cmdStart = r'xterm -e "source ' + sourcePath + r'/devel/setup.bash && '
     cmdImu = r'' if useImu else r' --topics /velodyne_points'
 
     roslaunch = cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
     os.system(roslaunch)
 
-    time.sleep(loadTime)
+    time.sleep(int(loadTime))
 
-    bagRecord = cmdSleep + cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
+    bagRecord = cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     os.system(bagRecord)
 
-    bagPlay = cmdSleep + cmdStart + r'rosbag play ' + wBag + r' -r ' + str(playRatio) + r' ' + cmdImu + r'" &'
+    bagPlay = cmdStart + r'rosbag play ' + wBag + r' -r ' + str(playRatio) + r' ' + cmdImu + r'" &'
     os.system(bagPlay)
 
-    time.sleep(bagTime+2)
+    time.sleep(int(bagTime+2))
     os.system(rosKill)
 
     #########################################
@@ -194,7 +192,7 @@ for rBag in bagFiles:
     ### call ROS processes for exporting pcds from a bag file
     os.system('roscore &')
 
-    time.sleep(loadTime)
+    time.sleep(2)
 
     pclCmd = 'rosrun pcl_ros bag_to_pcd ' + oBag + ' /velodyne_cloud_registered ' + pcdDir
 
