@@ -29,7 +29,7 @@ def convertImu(sbgImu, sbgQuat):
     imuMsg.linear_acceleration.z = sbgImu.accel.z
 
     imuMsg.header = sbgImu.header
-
+    imuMsg.header.frame_id = "imu_link"
     return imuMsg
 
 
@@ -65,7 +65,8 @@ def filterPointCloud2(msg, radius = None, swap = 'xyz'):
             continue
         
         outData.append(p)
-
+    
+    msg.header.frame_id = "laser_link"
     cld = pc2.create_cloud(msg.header, msg.fields, outData)
 
     return cld
@@ -76,14 +77,14 @@ print('# defining global variables')
 ### define path to directory with all bag files to be processed
 ### the bag files must contain the /velodyne_points topic and data from the IMU (optional)
 ### such bag files can also be generated from a raw velodyne PCAP through the velodyne's ROS drivers
-os.chdir(r'/media/tiago/DATA/PRJ_Plantar_10072019/BAGS/')
+os.chdir(r'/home/tiago/Desktop/bracell2_redo/')
 
 ### variables used to convert imu_data and parse pointCloud2
 ### list of ROS topics with raw data from the sensors
 tops = [r'/velodyne_points', r'/ekf_quat', r'/imu_data']
 
 ### distance limit to consider for the LiDAR data
-radius = None
+radius = 30
 
 ### axes' reordering to apply on the LiDAR's point cloud frames
 swap = 'xyz'
@@ -92,13 +93,13 @@ swap = 'xyz'
 ### ### use hector slam method?
 hectorSlam = False
 ### ### use IMU data?
-useImu = True
+useImu = False
 ### ### time ratio to apply when processing the bag file - lower ratios produce better point clouds
 playRatio = 0.25
 ### ### topics to be recorded while running the SLAM - results of the corregistration
-recTopics = [r'/imu/data', r'/integrated_to_init', r'/velodyne_cloud_registered']
+recTopics = [r'/imu/data', r'/laser_odom_to_init', r'/velodyne_cloud_registered']
 ### ### path to the workspace where the LOAM package is built
-sourcePath = r'~/catkin_loam'
+sourcePath = r'/home/tiago/catkin_aloam'
 
 ### variables used for generating the LAZ point cloud
 ### ### path to the pcd2laz executable
@@ -118,7 +119,8 @@ for i in os.listdir('.'):
 ### process bag files, one by one
 for rBag in bagFiles:
 
-    print('### processing: ' + rBag)
+    radius = 50 if re.match(r'.+_v\.bag$', rBag) is not None else 20
+    print('### processing: ' + rBag + ' @ radius ' + str(radius))
 
     ### define laz file name (final output)
     oLaz = re.sub(r'\.bag$', r'.laz', rBag)
@@ -165,11 +167,12 @@ for rBag in bagFiles:
     cmdStart = r'xterm -e "source ' + sourcePath + r'/devel/setup.bash && '
     cmdImu = r'' if useImu else r' --topics /velodyne_points'
 
-    roslaunch = cmdStart + r' roslaunch loam_velodyne ' + launchPref + r'loam_velodyne.launch" &'
+    roslaunch = cmdStart + r' roslaunch aloam_velodyne ' + launchPref + r'aloam_velodyne_VLP_16.launch" &'
     os.system(roslaunch)
 
     time.sleep(loadTime)
 
+    # bagRecord = cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     bagRecord = cmdStart + r'rosbag record ' + r' '.join(recTopics) + r' -O ' + oBag + r'" &'
     os.system(bagRecord)
 
@@ -194,7 +197,7 @@ for rBag in bagFiles:
 
     time.sleep(2)
 
-    pclCmd = 'rosrun pcl_ros bag_to_pcd ' + oBag + ' /velodyne_cloud_registered ' + pcdDir
+    pclCmd = 'rosrun pcl_ros bag_to_pcd ' + oBag + ' /velodyne_cloud_registered ' + pcdDir + ' /camera_init'
 
     os.system(pclCmd)
     os.system(rosKill)
