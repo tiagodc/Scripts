@@ -1,6 +1,7 @@
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import re, os, datetime, time
+import slam_api
 
 def authenticate(credentials_path = "mycreds.txt"):
     gauth = GoogleAuth()
@@ -18,9 +19,9 @@ def authenticate(credentials_path = "mycreds.txt"):
     drive = GoogleDrive(gauth)
     return drive
 
-driveId = '0AOS7p2Q6ZZvUUk9PVA'
-bagDir = '18JoqVGuoi9Dduc_aEbSW7-6n5YX7oqgg'
-lazDir = '1EF6MO2NQDG8GtU8KxbVCf_9L-fyesLtF'
+driveId = '0ADkpMc84zyxQUk9PVA'
+bagDir = '1v-_wd208p1JzrL9_TPafPUZ0Hm1h5CGe'
+lazDir = '1M5Q_TceP_jML3Z98grSVkyNX2I51C9bP'
 
 opt = {
     'q': "mimeType = 'application/vnd.google-apps.folder' and title = 'laz'",
@@ -32,14 +33,15 @@ opt = {
 
 while True:
 
-    time.sleep(10 * 60)
+    time.sleep(1)
 
     try:
         drive = authenticate()
     except:
         continue
-
-    try:
+    
+    opt["q"] = "mimeType = 'application/vnd.google-apps.folder' and title = 'laz'"
+    try:        
         dir_list = drive.ListFile(opt).GetList()
     except:
         continue
@@ -75,12 +77,24 @@ while True:
         
         ### call slam and upload laz file
         
-        #### SLAM ####
-        
         local_laz = 'laz/' + base + '.laz'
+        local_txt = 'txt/' + base + '.txt'
+
+        try:
+            side_prods = slam_api.runSLAM(local_bag, local_laz, local_txt, 30, 1)
+        except:
+            continue
+
         try:
             laz = drive.CreateFile({'uploadType':'resumable', 'parents': dir_list})
             laz.SetContentFile(local_laz)
+            
+            laz['title'] = re.sub('^laz/', '', laz['title'])
+            
             laz.Upload({'supportsAllDrives': True})
+
+            for sp in side_prods:
+                os.unlink(sp)
+
         except:
             continue
