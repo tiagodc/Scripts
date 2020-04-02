@@ -1,3 +1,3 @@
 echo "forlidar" | sudo -S mount -t vboxsf -o uid=1000,gid=0 Forlidar /home/forlidar/Desktop/Forlidar
-sleep 5
-echo "forlidar" | sudo -S docker start uploads
+sleep 10
+echo "forlidar" | sudo -S docker restart uploads

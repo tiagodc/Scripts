@@ -1,1 +1,1 @@
-sudo docker run --name <container-name> -dti --restart always -p 9000:5432 -p 5000:5000 -p 4200:4200 -v <host/path>:<container/path>  <docker-image-name-or-id> bash -c "sleep 5 && service postgresql start && service apache2 start && sleep infinity"
+sudo docker run --name <container-name> -dti --restart always -p 9000:5432 -p 5000:5000 -p 4200:4200 -v <host/path>:<container/path>  <docker-image-name-or-id> bash -c "service postgresql start && service apache2 start && sleep infinity"
