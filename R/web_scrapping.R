@@ -96,7 +96,8 @@ for(i in start_url:end_url) {
   
   if(empty_counter > 1000) break 
   
-  paste0('\n', data) %>% write(write_file, 7, T, '|')    
+  data[1] = paste0('\n', data[1])
+  write(data, write_file, 7, T, '|')    
 }
 
 # stopImplicitCluster()
