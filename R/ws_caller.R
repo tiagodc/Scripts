@@ -8,10 +8,11 @@ write(c('img', 'info', 'code', 'cite', 'likes', 'species_info', 'species_imgs'),
 log_file = 'log.txt'
 write('status', log_file, append = F)
 
-setwd('~/Desktop/Projects/Scripts/R')
+write_file = paste(getwd(), write_file, sep='/')
+log_file = paste(getwd(), log_file, sep='/')
 
-n = 300000
-starts = seq(0, 5000000, n)
+starts = 1:8
+n = length(starts)
 for(i in starts){
-  paste('xterm -e "Rscript web_scrapping.R', i, n, write_file, log_file, '" &') %>% system
+  paste('xterm -e "Rscript ~/Desktop/Projects/Scripts/R/web_scrapping.R', i, n, write_file, log_file, '" &') %>% system
 }

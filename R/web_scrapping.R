@@ -1,11 +1,9 @@
-setwd('~/Desktop/')
 require(rvest)
 # require(foreach)
 # require(doParallel)
 
-start_url = as.double(commandArgs(T)[1])
-end_url   = start_url + as.double(commandArgs(T)[2])
-start_url = start_url + 1
+pars = commandArgs(T)
+url_codes = seq(as.double(pars[1]), 5000000, as.double(pars[2]))
 
 write_file = commandArgs(T)[3]
 log_file = commandArgs(T)[4]
@@ -68,16 +66,19 @@ t0 = Sys.time()
 # cl = makePSOCKcluster(nCores)
 # registerDoParallel(cl)
 
-for(i in start_url:end_url) {
+counter = 0
+for(i in url_codes) {
 # foreach(i = 0:9999999, .combine = 'c', .packages = 'rvest') %dopar% {
-
-  paste('\nmining page:', padZeros(i), '\n') %>% cat
+  
+  counter = counter + 1
+  paste('\nterminal', pars[1], '- iteration', counter, '- mining page:', padZeros(i), '\n') %>% cat
   print(Sys.time() - t0)
   
   data = tryCatch(webMiner(i), error=function() NULL)
   
+  msg = paste('\n', Sys.time(), '- terminal', pars[1], '- iteration', counter, '-')
   if(is.null(data)){
-    paste('\n', Sys.time(), '- error trying to load page:', padZeros(i)) %>% write(log_file, append = T)
+    paste(msg, 'error trying to load page:', padZeros(i)) %>% write(log_file, append = T)
     paste('error trying to load page:', padZeros(i)) %>% message()
   }else if(data == -1 || data == 0){
     if(data[1] == -1) empty_counter = empty_counter + 1
@@ -85,9 +86,9 @@ for(i in start_url:end_url) {
   }else{
     sanity = sapply(data, stringr::str_length) %>% max
     if(sanity > 500){
-      paste('\n', Sys.time(), '- HTML warning:', padZeros(i)) %>% write(log_file, append = T)
+      paste(msg, 'HTML warning:', padZeros(i)) %>% write(log_file, append = T)
     }else{
-      paste('\n', Sys.time(), '- mining page:', padZeros(i)) %>% write(log_file, append = T)
+      paste(msg, 'mining page:', padZeros(i)) %>% write(log_file, append = T)
     }
   }
   
@@ -97,7 +98,7 @@ for(i in start_url:end_url) {
   if(empty_counter > 1000) break 
   
   data[1] = paste0('\n', data[1])
-  write(data, write_file, 7, T, '|')    
+  write(data, write_file, 7, T, '|')
 }
 
 # stopImplicitCluster()
