@@ -51,7 +51,9 @@ write_file = 'enquia.txt'
 write(c('img', 'info', 'code', 'cite', 'likes', 'species_info', 'species_imgs'), 
       write_file, ncolumns = 7, sep = '|', append = F)
 
-error_urls = c()
+log_file = 'log.txt'
+write('errors', log_file, append = F)
+
 empty_counter = 0
 t0 = Sys.time()
 
@@ -62,7 +64,7 @@ for(i in 0:9999999){
   data = tryCatch(webMiner(i), error=function() NULL)
   
   if(is.null(data)){
-    error_urls = c(error_urls, i)    
+    write(padZeros(i) , log_file, append = T)
     paste('error trying to load page:', padZeros(i)) %>% message()
   }
   
