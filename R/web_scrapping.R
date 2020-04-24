@@ -83,8 +83,9 @@ repeat{
       paste(msg, 'error trying to load page:', padZeros(i)) %>% write(log_file, append = T)
       paste('error trying to load page:', padZeros(i)) %>% message()
     }else if(data[1] == -1){
-      empty_counter = empty_counter + 1
       paste(msg, 'empty page:', padZeros(i)) %>% write(log_file, append = T)
+      empty_counter = empty_counter + 1
+      if(empty_counter > 1000) break
       next
     }else if(data[1] == 0){
       paste(msg, 'sound page:', padZeros(i)) %>% write(log_file, append = T)
@@ -99,10 +100,7 @@ repeat{
     }
     
     empty_counter = 0
-    empty_counter = ifelse(data[1] == -1, empty_counter + 1, 0) %>% as.double
-    
-    if(empty_counter > 1000) break 
-    
+
     data[1] = paste0('\n', data[1])
     write(data, write_file, 7, T, '|')
   }
