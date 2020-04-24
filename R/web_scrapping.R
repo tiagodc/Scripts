@@ -57,6 +57,7 @@ webMiner = function(page_index, base_url = "https://www.wikiaves.com.br/"){
   data = c(img = img, info = info, code = code, cite = cite, likes = likes, species_info = species_info_url, species_imgs = species_imgs_url)
   return(data)
 }
+options(scipen = 10)
 
 repeat{
   used_codes = read.table(log_file, sep='|', as.is = T)[-1,1] %>% 
@@ -85,7 +86,7 @@ repeat{
     }else if(data[1] == -1){
       paste(msg, 'empty page:', padZeros(i)) %>% write(log_file, append = T)
       empty_counter = empty_counter + 1
-      if(empty_counter > 1000) break
+      # if(empty_counter > 1000) break
       next
     }else if(data[1] == 0){
       paste(msg, 'sound page:', padZeros(i)) %>% write(log_file, append = T)

@@ -11,7 +11,7 @@ log_file = 'log.txt'
 write_file = paste(getwd(), write_file, sep='/')
 log_file = paste(getwd(), log_file, sep='/')
 
-starts = 1:12
+starts = 1:20
 n = length(starts)
 for(i in starts){
   paste('xterm -e "Rscript ~/Desktop/Projects/Scripts/R/web_scrapping.R', i, n, write_file, log_file, '" &') %>% system
