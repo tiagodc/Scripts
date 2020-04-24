@@ -1,12 +1,11 @@
 require(rvest)
-# require(foreach)
-# require(doParallel)
 
+# pars = c(1,6,'~/Desktop/enquia.txt', '~/Desktop/log.txt')
 pars = commandArgs(T)
 url_codes = seq(as.double(pars[1]), 5000000, as.double(pars[2]))
 
-write_file = commandArgs(T)[3]
-log_file = commandArgs(T)[4]
+write_file = pars[3]
+log_file = pars[4]
 
 padZeros = function(number, digits=7){
     nstr = as.character(number)
@@ -59,48 +58,52 @@ webMiner = function(page_index, base_url = "https://www.wikiaves.com.br/"){
   return(data)
 }
 
-empty_counter = 0
-t0 = Sys.time()
-
-# nCores = 4
-# cl = makePSOCKcluster(nCores)
-# registerDoParallel(cl)
-
-counter = 0
-for(i in url_codes) {
-# foreach(i = 0:9999999, .combine = 'c', .packages = 'rvest') %dopar% {
+repeat{
+  used_codes = read.table(log_file, sep='|', as.is = T)[-1,1] %>% 
+    as.character %>% sub(pattern = '.+:\\s(\\d+$)', replacement = '\\1') %>% as.double
   
-  counter = counter + 1
-  paste('\nterminal', pars[1], '- iteration', counter, '- mining page:', padZeros(i), '\n') %>% cat
-  print(Sys.time() - t0)
+  url_codes = url_codes[!(url_codes %in% used_codes)]
   
-  data = tryCatch(webMiner(i), error=function() NULL)
-  
-  msg = paste('\n', Sys.time(), '- terminal', pars[1], '- iteration', counter, '-')
-  if(is.null(data)){
-    paste(msg, 'error trying to load page:', padZeros(i)) %>% write(log_file, append = T)
-    paste('error trying to load page:', padZeros(i)) %>% message()
-  }else if(data == -1 || data == 0){
-    if(data[1] == -1) empty_counter = empty_counter + 1
-    next
-  }else{
-    sanity = sapply(data, stringr::str_length) %>% max
-    if(sanity > 500){
-      paste(msg, 'HTML warning:', padZeros(i)) %>% write(log_file, append = T)
-    }else{
-      paste(msg, 'mining page:', padZeros(i)) %>% write(log_file, append = T)
-    }
-  }
+  if(length(url_codes) == 0) break
   
   empty_counter = 0
-  empty_counter = ifelse(data[1] == -1, empty_counter + 1, 0) %>% as.double
+  t0 = Sys.time()
   
-  if(empty_counter > 1000) break 
+  counter = 0
+  for(i in url_codes) {
   
-  data[1] = paste0('\n', data[1])
-  write(data, write_file, 7, T, '|')
+    counter = counter + 1
+    paste('\nterminal', pars[1], '- iteration', counter, '- mining page:', padZeros(i), '\n') %>% cat
+    print(Sys.time() - t0)
+    
+    data = tryCatch(webMiner(i), error=function() NULL)
+    
+    msg = paste('\n', Sys.time(), '- terminal', pars[1], '- iteration', counter, '-')
+    if(is.null(data)){
+      paste(msg, 'error trying to load page:', padZeros(i)) %>% write(log_file, append = T)
+      paste('error trying to load page:', padZeros(i)) %>% message()
+    }else if(data[1] == -1){
+      empty_counter = empty_counter + 1
+      paste(msg, 'empty page:', padZeros(i)) %>% write(log_file, append = T)
+      next
+    }else if(data[1] == 0){
+      paste(msg, 'sound page:', padZeros(i)) %>% write(log_file, append = T)
+      next
+    }else{
+      sanity = sapply(data, stringr::str_length) %>% max
+      if(sanity > 500){
+        paste(msg, 'HTML warning:', padZeros(i)) %>% write(log_file, append = T)
+      }else{
+        paste(msg, 'mining page:', padZeros(i)) %>% write(log_file, append = T)
+      }
+    }
+    
+    empty_counter = 0
+    empty_counter = ifelse(data[1] == -1, empty_counter + 1, 0) %>% as.double
+    
+    if(empty_counter > 1000) break 
+    
+    data[1] = paste0('\n', data[1])
+    write(data, write_file, 7, T, '|')
+  }
 }
-
-# stopImplicitCluster()
-# stopCluster(cl)
-# registerDoSEQ()

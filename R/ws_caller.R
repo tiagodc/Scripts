@@ -2,11 +2,11 @@ setwd('~/Desktop')
 require(magrittr)
 
 write_file = 'enquia.txt'
-write(c('img', 'info', 'code', 'cite', 'likes', 'species_info', 'species_imgs'),
-      write_file, ncolumns = 7, sep = '|', append = F)
+# write(c('img', 'info', 'code', 'cite', 'likes', 'species_info', 'species_imgs'),
+#       write_file, ncolumns = 7, sep = '|', append = F)
 
 log_file = 'log.txt'
-write('status', log_file, append = F)
+# write('status', log_file, append = F)
 
 write_file = paste(getwd(), write_file, sep='/')
 log_file = paste(getwd(), log_file, sep='/')
