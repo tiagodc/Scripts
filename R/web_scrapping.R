@@ -65,6 +65,9 @@ repeat{
   
   url_codes = url_codes[!(url_codes %in% used_codes)]
   
+  rm(used_codes)
+  gc()
+  
   if(length(url_codes) == 0) break
   
   empty_counter = 0
