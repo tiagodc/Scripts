@@ -66,7 +66,7 @@ repeat{
   url_codes = url_codes[!(url_codes %in% used_codes)]
   
   rm(used_codes)
-  gc()
+  gc(T,T,T)
   
   if(length(url_codes) == 0) break
   
@@ -75,7 +75,7 @@ repeat{
   
   counter = 0
   for(i in url_codes) {
-  
+    gc()
     counter = counter + 1
     paste('\nterminal', pars[1], '- iteration', counter, '- mining page:', padZeros(i), '\n') %>% cat
     print(Sys.time() - t0)
